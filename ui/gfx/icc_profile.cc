@@ -56,7 +56,7 @@ void ICCProfile::Internals::Initialize() {
   // Parse the profile.
   skcms_ICCProfile profile;
   if (!skcms_Parse(data_.data(), data_.size(), &profile)) {
-    DLOG(ERROR) << "Failed to parse ICC profile.";
+    // DLOG(ERROR) << "Failed to parse ICC profile.";
     return;
   }
 

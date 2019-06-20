@@ -30,7 +30,7 @@ TerminationStatus GetTerminationStatusImpl(ProcessHandle handle,
   const pid_t result =
       HANDLE_EINTR(waitpid(handle, &status, can_block ? 0 : WNOHANG));
   if (result == -1) {
-    DPLOG(ERROR) << "waitpid(" << handle << ")";
+    // DPLOG(ERROR) << "waitpid(" << handle << ")";
     *exit_code = 0;
     return TERMINATION_STATUS_NORMAL_TERMINATION;
   }
