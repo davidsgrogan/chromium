@@ -150,7 +150,7 @@ class WTFStringImplPrinter(StringPrinter):
 
     def to_string(self):
         chars_start = self.val.address + 1
-        if self.is_8bit():
+        if True:
             return lstring_to_string(
                 chars_start.cast(gdb.lookup_type('char').pointer()),
                 self.get_length())
