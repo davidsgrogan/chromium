@@ -23,6 +23,8 @@
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
 
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+
 namespace blink {
 
 LayoutUnit ResolveInlineLengthInternal(
@@ -73,10 +75,18 @@ LayoutUnit ResolveInlineLengthInternal(
                 unresolvable_length_result);
           }});
 
-      if (style.BoxSizing() == EBoxSizing::kBorderBox)
+      if (g_debug) {
+        AMA << "Resolving percentage/fixed InlineLength, "
+               "percentage_resolution_size = "
+            << percentage_resolution_size << ", value = " << value;
+      }
+
+      if (style.BoxSizing() == EBoxSizing::kBorderBox) {
         value = std::max(border_padding.InlineSum(), value);
-      else
+      } else {
+        // This seems to not include scrollbar width??
         value += border_padding.InlineSum();
+      }
       return value;
     }
     case Length::kContent:
@@ -116,6 +126,30 @@ LayoutUnit ResolveInlineLengthInternal(
   }
 }
 
+bool g_debug = false;
+int g_depth = 0;
+
+std::string DepthPrefix() {
+  WTF::StringBuilder to_ret;
+  WTF::Vector<WTF::String> a = {
+      "_11", "_22", "_33", "_44", "_55", "_66",
+  };
+  int ignore_first = 3;
+  for (int i = ignore_first; i <= std::min(g_depth, (int)a.size()); i++) {
+    to_ret.Append(a[i - ignore_first]);
+  }
+  if (g_depth > (int)a.size()) {
+    to_ret.Append("_**");
+  }
+  return std::string(to_ret.ToString().Utf8().data());
+}
+
+bool NewF() {
+  return RuntimeEnabledFeatures::NewFEnabled();
+}
+bool OldF() {
+  return !NewF();
+}
 LayoutUnit ResolveBlockLengthInternal(
     const ConstraintSpace& constraint_space,
     const ComputedStyle& style,
@@ -127,6 +161,13 @@ LayoutUnit ResolveBlockLengthInternal(
     IntrinsicBlockSizeFunctionRef intrinsic_block_size_func,
     LayoutUnit unresolvable_length_result) {
   DCHECK_EQ(constraint_space.GetWritingMode(), style.GetWritingMode());
+  if (g_debug) {
+    //    AMA << "Top of ResolveBlockLength. length=" << length.ToString()
+    //               << " content_size = " << content_size << " type = " <<
+    //               (int)type
+    //               << " writing_mode = " <<
+    //               (int)constraint_space.GetWritingMode();
+  }
 
   CHECK(!original_length.IsAuto() || auto_length);
   // for min-block-size, this might still be 'auto'
@@ -1583,8 +1624,12 @@ LogicalSize CalculateChildPercentageSize(
   if (space.IsTableCellChild())
     return child_available_size;
 
-  return AdjustChildPercentageSize(space, node, child_available_size,
-                                   space.PercentageResolutionBlockSize());
+  LogicalSize to_return = AdjustChildPercentageSize(
+      space, node, child_available_size, space.PercentageResolutionBlockSize());
+  if (node.GetLayoutBox()->IsMine()) {
+    AMA << "IsMine returning child percentage size of = " << to_return;
+  }
+  return to_return;
 }
 
 LogicalSize CalculateReplacedChildPercentageSize(

@@ -328,7 +328,7 @@ bool Process::TerminateInternal(int exit_code, bool wait) const {
     return true;
   }
   if (kill(process_, SIGKILL) != 0) {
-    //DPLOG(ERROR) << "Unable to kill process " << process_;
+    // DPLOG(ERROR) << "Unable to kill process " << process_;
     return false;
   }
   return WaitForExit(nullptr);

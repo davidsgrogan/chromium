@@ -79,6 +79,22 @@ ResolveInlineLengthInternal(const ConstraintSpace&,
 
 // Same as ResolveInlineLengthInternal, except here |intrinsic_size| roughly
 // plays the part of |MinMaxSizes|.
+// content_size is returned when:
+//   - constraint space is anonymous
+//   - or trying to resolve kContentSize (i.e. LengthResolveType is neither
+//     MinSize nor MaxSize) but Length is unresolvable, which means it's
+//     - PercentOrCalc AND [Phase is intrinsic sizing, or block percentage
+//       resolution size is indef]
+//     - or FillAvailable AND [Phase is intrinsic sizing, or block available
+//       size is indef]
+//   - or Length is kAuto, kMinContent, kMaxContent, or kFitContent.
+// In all these situations, content_size is returned as-is, no modifcations are
+// done.
+
+CORE_EXPORT extern bool g_debug;
+CORE_EXPORT extern int g_depth;
+CORE_EXPORT std::string DepthPrefix();
+
 CORE_EXPORT LayoutUnit ResolveBlockLengthInternal(
     const ConstraintSpace&,
     const ComputedStyle&,
@@ -646,6 +662,9 @@ ComputeMinAndMaxContentContributionForTest(WritingMode writing_mode,
                                            const BlockNode&,
                                            const ConstraintSpace&,
                                            const MinMaxSizes&);
+
+CORE_EXPORT bool NewF();
+CORE_EXPORT bool OldF();
 
 // This function checks if the inline size of this node has to be calculated
 // without considering children. If so, it returns the calculated size.

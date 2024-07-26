@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/html/html_object_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loading_log.h"
 
@@ -52,6 +53,9 @@ void HTMLImageLoader::DispatchLoadEvent() {
   if (ShouldSkipEventDispatch(GetElement())) {
     return;
   }
+
+  AMA << "Top of HTMLImageLoader::DispatchLoadEvent with error_occurred = "
+      << GetContent()->ErrorOccurred();
 
   if (GetContent()->ErrorOccurred()) {
     DispatchErrorEvent();

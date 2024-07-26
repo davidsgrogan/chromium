@@ -469,6 +469,15 @@ constexpr LogSeverity LOGGING_0 = LOGGING_ERROR;
 #define LOG_IF(severity, condition) \
   LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity) && (condition))
 
+#define AMA                            \
+  LAZY_STREAM(LOG_STREAM(ERROR), true) \
+      << DepthPrefix() << (DepthPrefix().size() > 0 ? " " : "")
+
+#define MYLOG                                                   \
+  LAZY_STREAM(LOG_STREAM(ERROR), (IsEither()))                  \
+      << DepthPrefix() << (DepthPrefix().size() > 0 ? " " : "") \
+      << MineString().Utf8().data() << " "
+
 // The VLOG macros log with negative verbosities.
 #define VLOG_STREAM(verbose_level) \
   ::logging::LogMessage(__FILE__, __LINE__, -(verbose_level)).stream()

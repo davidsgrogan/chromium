@@ -8,6 +8,7 @@
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/physical_fragment.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
@@ -396,6 +397,9 @@ void FragmentBuilder::AddChildInternal(const PhysicalFragment* child,
     children_.push_front(LogicalFragmentLink{std::move(child), child_offset});
     return;
   }
+
+  MYLOG << "adding child " << child->ToString() << " at logical offset "
+        << child_offset;
 
   if (child->IsTextControlPlaceholder()) {
     // ::placeholder should be followed by another block in order to paint

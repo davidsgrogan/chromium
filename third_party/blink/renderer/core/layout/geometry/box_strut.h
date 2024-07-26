@@ -287,11 +287,15 @@ struct CORE_EXPORT PhysicalBoxStrut {
 
   bool IsZero() const { return !top && !right && !bottom && !left; }
 
+  WTF::String ToString() const;
+
   LayoutUnit top;
   LayoutUnit right;
   LayoutUnit bottom;
   LayoutUnit left;
 };
+
+CORE_EXPORT std::ostream& operator<<(std::ostream&, const PhysicalBoxStrut&);
 
 inline PhysicalBoxStrut BoxStrut::ConvertToPhysical(
     WritingDirectionMode writing_direction) const {

@@ -1198,6 +1198,7 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
                                   : Phase::kLayout,
                               oof_children);
 
+  // TODO(dgrogan): These need to account for direction and reverse flows.
   LayoutUnit main_axis_start_offset;
   LayoutUnit main_axis_end_offset;
   LayoutUnit cross_axis_offset = BorderScrollbarPadding().block_start;

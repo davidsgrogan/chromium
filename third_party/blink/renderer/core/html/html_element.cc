@@ -109,6 +109,7 @@
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/mathml/mathml_element.h"
 #include "third_party/blink/renderer/core/mathml_names.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
@@ -3024,10 +3025,12 @@ int HTMLElement::OffsetTopOrLeft(bool top) {
 }
 
 int HTMLElement::offsetLeftForBinding() {
+  AMA << "\nTop of offsetLeft";
   return OffsetTopOrLeft(/*top=*/false);
 }
 
 int HTMLElement::offsetTopForBinding() {
+  AMA << "\nTop of offsetTop";
   return OffsetTopOrLeft(/*top=*/true);
 }
 

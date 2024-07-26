@@ -242,7 +242,7 @@ FileHandle g_log_file = nullptr;
 // What should be prepended to each message?
 bool g_log_process_id = false;
 bool g_log_thread_id = false;
-bool g_log_timestamp = true;
+bool g_log_timestamp = false;
 bool g_log_tickcount = false;
 const char* g_log_prefix = nullptr;
 
@@ -631,8 +631,8 @@ void SetLogItems(bool enable_process_id, bool enable_thread_id,
                  bool enable_timestamp, bool enable_tickcount) {
   g_log_process_id = enable_process_id;
   g_log_thread_id = enable_thread_id;
-  g_log_timestamp = enable_timestamp;
-  g_log_tickcount = enable_tickcount;
+  g_log_timestamp = false;
+  g_log_tickcount = false;
 }
 
 void SetLogPrefix(const char* prefix) {

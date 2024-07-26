@@ -69,6 +69,8 @@ struct NonOverflowingScrollRange;
 struct PaintInfo;
 struct PhysicalBoxStrut;
 
+std::string DepthPrefix();
+
 enum BackgroundRectType {
   kBackgroundPaintedExtent,
   kBackgroundKnownOpaqueRect,
@@ -251,6 +253,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
 
   void SetLocation(const LayoutPoint& location) {
     NOT_DESTROYED();
+    MYLOG << "SetLocation got " << location;
     if (location == frame_location_) {
       return;
     }

@@ -311,6 +311,12 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // Returns the name of the layout object.
   virtual const char* GetName() const = 0;
 
+  bool IsMine() const;
+  bool IsMine2() const;
+  bool IsEither() const;
+  String MyDebugName() const;
+  String MineString() const;
+
   // Returns the decorated name used by run-layout-tests. The name contains the
   // name of the object along with extra information about the layout object
   // state (e.g. positioning).

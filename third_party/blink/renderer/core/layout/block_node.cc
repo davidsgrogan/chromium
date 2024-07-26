@@ -362,6 +362,14 @@ const LayoutResult* BlockNode::Layout(
     const BlockBreakToken* break_token,
     const EarlyBreak* early_break,
     const ColumnSpannerPath* column_spanner_path) const {
+  std::unique_ptr<base::AutoReset<bool>> a;
+  base::AutoReset<int> depth(&g_depth, g_depth + 1);
+  if (IsEither()) {
+    a = std::make_unique<base::AutoReset<bool>>(&g_debug, true);
+    AMA << "Top of NGBlockNode::Layout for " << MyDebugName()
+        << " ConstraintSpace = " << constraint_space.ToString();
+  }
+
   // The exclusion space internally is a pointer to a shared vector, and
   // equality of exclusion spaces is performed using pointer comparison on this
   // internal shared vector.
@@ -412,8 +420,13 @@ const LayoutResult* BlockNode::Layout(
     box_->ClearHasBrokenSpine();
   }
 
+  MYLOG << "Before top layout in NGBlockNode::Layout, cache_status = "
+        << (int)cache_status;
   if (cache_status == LayoutCacheStatus::kHit) {
     DCHECK(layout_result);
+    if (g_debug) {
+      AMA << "Got a cache hit for " << MyDebugName();
+    }
 
     // We may have to update the margins on box_; we reuse the layout result
     // even if a percentage margin may have changed.
@@ -431,9 +444,12 @@ const LayoutResult* BlockNode::Layout(
   }
 
   if (!fragment_geometry) {
+    MYLOG << "Didn't have fragment_geometry in NGBlockNode::Layout, so calling "
+             "CalculateInitialFragmentGeometry";
     fragment_geometry =
         CalculateInitialFragmentGeometry(constraint_space, *this, break_token);
   }
+  MYLOG << "fragment_geometry = " << (*fragment_geometry).ToString();
 
   // Only consider the size of the first container fragment.
   if (!IsBreakInside(break_token) && CanMatchSizeContainerQueries()) {
@@ -483,6 +499,9 @@ const LayoutResult* BlockNode::Layout(
   // root (the simplified layout algorithm doesn't support fragmentainers).
   if (cache_status == LayoutCacheStatus::kNeedsSimplifiedLayout &&
       (!block_flow || !block_flow->IsFragmentationContextRoot())) {
+    if (g_debug) {
+      AMA << "Running SimplifiedLayout for " << MyDebugName();
+    }
     DCHECK(layout_result);
 #if DCHECK_IS_ON()
     const LayoutResult* previous_result = layout_result;
@@ -513,6 +532,9 @@ const LayoutResult* BlockNode::Layout(
       fragment_geometry->border_box_size.inline_size;
   const bool intrinsic_logical_widths_dirty_before =
       box_->IntrinsicLogicalWidthsDirty();
+
+  MYLOG << "About to call top LayoutWithAlgorithm with CS "
+        << params.space.ToString();
 
   if (!layout_result)
     layout_result = LayoutWithAlgorithm(params);
@@ -637,8 +659,11 @@ const LayoutResult* BlockNode::SimplifiedLayout(
     return nullptr;
   }
 
-  if (!box_->NeedsLayout())
+  if (!box_->NeedsLayout()) {
+    MYLOG << "Got in to !box_->NeedsLayout() in NGBlockNode::SimplifiedLayout";
     return previous_result;
+  }
+  MYLOG << "Got past that in NGBlockNode::SimplifiedLayout";
 
   DCHECK(box_->NeedsSimplifiedLayoutOnly() ||
          box_->ChildLayoutBlockedByDisplayLock());
@@ -646,12 +671,21 @@ const LayoutResult* BlockNode::SimplifiedLayout(
   // Perform layout on ourselves using the previous constraint space.
   const ConstraintSpace space(previous_result->GetConstraintSpaceForCaching());
   const LayoutResult* result = Layout(space, /* break_token */ nullptr);
+  MYLOG << " is about to perform Layout from SimplifiedLayout with "
+           "space.AvailableSize().inline_size of"
+        << space.AvailableSize().inline_size;
 
   if (result->Status() != LayoutResult::kSuccess) {
     // TODO(crbug.com/1297864): The optimistic BFC block-offsets aren't being
     // set correctly for block-in-inline causing these layouts to fail.
     return nullptr;
   }
+
+  MYLOG << " just performed SimplifiedLayout with "
+           "space.AvailableSize().inline_size of"
+        << space.AvailableSize().inline_size
+        << " previous Size = " << previous_result->GetPhysicalFragment().Size()
+        << " new size = " << result->GetPhysicalFragment().Size();
 
   const auto& old_fragment =
       To<PhysicalBoxFragment>(previous_result->GetPhysicalFragment());
@@ -791,6 +825,8 @@ void BlockNode::FinishLayout(
     return;
   }
 
+  MYLOG << "Top of NGBlockNode::FinishLayout after dodging quick aborting";
+
   if (layout_result->Status() != LayoutResult::kSuccess) {
     // Layout aborted, but there may be results from a previous layout lying
     // around. They are fine to keep, but since we aborted, it means that we
@@ -896,6 +932,21 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
     const MinMaxSizesType type,
     const ConstraintSpace& constraint_space,
     const MinMaxSizesFloatInput float_input) const {
+  base::AutoReset<int> depth(&g_depth, g_depth + 1);
+  std::unique_ptr<base::AutoReset<bool>> a;
+  if (IsEither()) {
+    MYLOG << "Top of NGBlockNode::ComputeMinMaxSize";
+    a = std::make_unique<base::AutoReset<bool>>(&g_debug, true);
+  }
+
+  if (g_debug) {
+    //    AMA << "Top of NGBlockNode::ComputeMinMaxSize for " << MyDebugName();
+    //    if (constraint_space)
+    //      AMA << "\t with ConstraintSpace " << constraint_space->ToString();
+    //    else
+    //      AMA << "\t with no ConstraintSpace";
+  }
+
   // TODO(layoutng) Can UpdateMarkerTextIfNeeded call be moved
   // somewhere else? List items need up-to-date markers before layout.
   if (IsListItem())
@@ -1172,6 +1223,7 @@ void BlockNode::CopyFragmentDataToLayoutBox(
       To<PhysicalBoxFragment>(layout_result.GetPhysicalFragment());
   bool is_last_fragment = !physical_fragment.GetBreakToken();
 
+  MYLOG << "fragment = " << physical_fragment;
   // TODO(mstensho): This should always be done by the parent algorithm, since
   // we may have auto margins, which only the parent is able to resolve. Remove
   // the following line when all layout modes do this properly.

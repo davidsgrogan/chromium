@@ -5,8 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GEOMETRY_FRAGMENT_GEOMETRY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GEOMETRY_FRAGMENT_GEOMETRY_H_
 
-#include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
+#include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -21,6 +22,12 @@ struct FragmentGeometry {
   BoxStrut border;
   BoxStrut scrollbar;
   BoxStrut padding;
+  String ToString() const {
+    return "border_box_size: " + border_box_size.ToString() +
+           " border: " + border.ToString() +
+           " scrollbar: " + scrollbar.ToString() +
+           " padding: " + padding.ToString();
+  }
 };
 
 }  // namespace blink

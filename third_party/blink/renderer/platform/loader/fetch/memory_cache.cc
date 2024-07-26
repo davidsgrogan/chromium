@@ -140,8 +140,7 @@ void MemoryCache::Add(Resource* resource) {
   ResourceMap* resources = EnsureResourceMap(resource->CacheIdentifier());
   AddInternal(resources, MakeGarbageCollected<MemoryCacheEntry>(resource));
   RESOURCE_LOADING_DVLOG(1)
-      << "MemoryCache::add Added " << resource->Url().GetString()
-      << ", resource " << resource;
+      << "MemoryCache::add Added " << resource->Url().GetString();
 }
 
 void MemoryCache::AddInternal(ResourceMap* resource_map,
@@ -175,7 +174,7 @@ void MemoryCache::Remove(Resource* resource) {
   if (resource->Url().IsNull())
     return;
 
-  RESOURCE_LOADING_DVLOG(1) << "Evicting resource " << resource << " for "
+  RESOURCE_LOADING_DVLOG(1) << "Evicting resource for "
                             << resource->Url().GetString() << " from cache";
   TRACE_EVENT1("blink", "MemoryCache::evict", "resource",
                resource->Url().GetString().Utf8());

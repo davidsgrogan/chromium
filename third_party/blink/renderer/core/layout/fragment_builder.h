@@ -87,6 +87,7 @@ class CORE_EXPORT FragmentBuilder {
     DCHECK(size_.block_size != kIndefiniteSize);
     return size_.block_size;
   }
+  const LogicalSize& SizeForDebug() const { return size_; }
   const LogicalSize& Size() const {
     DCHECK(size_.block_size != kIndefiniteSize);
     return size_;
@@ -510,6 +511,27 @@ class CORE_EXPORT FragmentBuilder {
         is_hidden_for_paint_(space.IsHiddenForPaint()) {
     DCHECK(style_);
     layout_object_ = node.GetLayoutBox();
+  }
+
+  bool IsEither() const {
+    DCHECK(layout_object_);
+    return layout_object_->IsEither();
+  }
+  String MineString() const {
+    DCHECK(layout_object_);
+    return layout_object_->MineString();
+  }
+  bool IsMine() const {
+    DCHECK(layout_object_);
+    return layout_object_->IsMine();
+  }
+  bool IsMine2() const {
+    DCHECK(layout_object_);
+    return layout_object_->IsMine2();
+  }
+  String MyDebugName() const {
+    DCHECK(layout_object_);
+    return layout_object_->MyDebugName();
   }
 
   HeapVector<Member<LayoutBoxModelObject>>& EnsureStickyDescendants();

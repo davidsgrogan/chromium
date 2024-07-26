@@ -268,6 +268,12 @@ class CORE_EXPORT LayoutInputNode {
     return box_->ChildLayoutBlockedByDisplayLock();
   }
 
+  bool IsMine() const { return box_->IsMine(); }
+  bool IsMine2() const { return box_->IsMine2(); }
+  String MineString() const { return box_->MineString(); }
+  bool IsEither() const { return box_->IsEither(); }
+  String MyDebugName() const { return box_->MyDebugName(); }
+
   CustomLayoutChild* GetCustomLayoutChild() const {
     // TODO(ikilpatrick): Support InlineNode.
     DCHECK(IsBlock());

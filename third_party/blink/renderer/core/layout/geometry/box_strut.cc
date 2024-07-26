@@ -10,7 +10,7 @@
 
 namespace blink {
 
-String BoxStrut::ToString() const {
+WTF::String BoxStrut::ToString() const {
   return String::Format("Inline: (%d %d) Block: (%d %d)", inline_start.ToInt(),
                         inline_end.ToInt(), block_start.ToInt(),
                         block_end.ToInt());
@@ -18,6 +18,15 @@ String BoxStrut::ToString() const {
 
 std::ostream& operator<<(std::ostream& stream, const BoxStrut& value) {
   return stream << value.ToString();
+}
+
+std::ostream& operator<<(std::ostream& stream, const PhysicalBoxStrut& value) {
+  return stream << value.ToString();
+}
+
+String PhysicalBoxStrut::ToString() const {
+  return String::Format("left: %d right: %d top: %d bottom: %d", left.ToInt(),
+                        right.ToInt(), top.ToInt(), bottom.ToInt());
 }
 
 BoxStrut::BoxStrut(const LineBoxStrut& line_relative, bool is_flipped_lines) {

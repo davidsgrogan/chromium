@@ -252,6 +252,12 @@ class CORE_EXPORT LayoutAlgorithm {
 
   BoxFragmentBuilderType container_builder_;
 
+  bool IsMine() const { return Node().IsMine(); }
+  bool IsMine2() const { return Node().IsMine2(); }
+  String MineString() const { return Node().MineString(); }
+  bool IsEither() const { return Node().IsEither(); }
+  String MyDebugName() const { return Node().MyDebugName(); }
+
   // There are cases where we may need more than one early break per fragment.
   // For example, there may be an early break within multiple flex columns. This
   // can be used to pass additional early breaks to the next layout pass.
