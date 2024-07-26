@@ -60,6 +60,8 @@ struct CORE_EXPORT LogicalSize {
     block_size -= block_offset;
   }
 
+  String ToString() const;
+
   LogicalSize ClampNegativeToZero() const {
     return LogicalSize(inline_size.ClampNegativeToZero(),
                        block_size.ClampNegativeToZero());

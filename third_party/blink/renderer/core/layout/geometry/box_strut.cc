@@ -20,6 +20,15 @@ std::ostream& operator<<(std::ostream& stream, const BoxStrut& value) {
   return stream << value.ToString();
 }
 
+std::ostream& operator<<(std::ostream& stream, const PhysicalBoxStrut& value) {
+  return stream << value.ToString();
+}
+
+String PhysicalBoxStrut::ToString() const {
+  return String::Format("left: %d right: %d top: %d bottom: %d", left.ToInt(),
+                        right.ToInt(), top.ToInt(), bottom.ToInt());
+}
+
 BoxStrut::BoxStrut(const LineBoxStrut& line_relative, bool is_flipped_lines) {
   if (!is_flipped_lines) {
     *this = {line_relative.inline_start, line_relative.inline_end,

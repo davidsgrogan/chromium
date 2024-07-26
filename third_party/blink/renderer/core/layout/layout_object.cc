@@ -2408,6 +2408,22 @@ HitTestResult LayoutObject::HitTestForOcclusion(
                                                           this, true);
 }
 
+std::string LayoutObject::MyDebugName() const {
+  StringBuilder string_builder;
+  DumpLayoutObject(string_builder, false, 0);
+  return string_builder.ToString().Utf8();
+}
+
+String LayoutObject::MineString() const {
+  if (IsMine()) {
+    return "IsMine";
+  }
+  if (IsMine2()) {
+    return "IsMine2";
+  }
+  return "IsNeither";
+}
+
 std::ostream& operator<<(std::ostream& out, const LayoutObject& object) {
   String info;
 #if DCHECK_IS_ON()
@@ -2457,8 +2473,55 @@ void LayoutObject::ShowLayoutObject() const {
   DLOG(INFO) << "\n" << string_builder.ToString().Utf8();
 }
 
+bool LayoutObject::IsMine() const {
+  if (!GetNode() || !GetNode()->IsElementNode()) {
+    return false;
+  }
+  Element* elem = To<Element>(GetNode());
+  if (!elem) {
+    return false;
+  }
+
+  // return elem->HasClass() &&
+  //        elem->ClassNames().SerializeToString() ==
+  //            AtomicString("soft-dropdown toolbar-item toolbar-has-dropdown");
+
+  // return elem->HasClassName("patchInfoContent");
+
+  // return (elem->HasClass() && elem->ClassNames().ContainsAll(
+  //                                 SpaceSplitString(AtomicString("cf ix"))));
+
+  return elem->GetIdAttribute() == "mine";
+
+  // return GetNode()->nodeName() == "PICTURE";
+
+  // if (!IsLayoutNGFlexibleBox())
+  //   return false;
+  // LayoutObject* first_child = SlowFirstChild();
+  // if (!first_child)
+  //   return false;
+  // elem = To<Element>(first_child->GetNode());
+  //
+  // return elem && elem->GetIdAttribute() == "pageSettingsCustomInput";
+}
+
+bool LayoutObject::IsMine2() const {
+  if (!GetNode() || !GetNode()->IsElementNode()) {
+    return false;
+  }
+  Element* elem = To<Element>(GetNode());
+  if (!elem) {
+    return false;
+  }
+  return elem->GetIdAttribute() == "mine2";
+}
+
+bool LayoutObject::IsEither() const {
+  return IsMine() || IsMine2();
+}
+
 void LayoutObject::DumpLayoutObject(StringBuilder& string_builder,
-                                    bool dump_address,
+                                    bool /* dump_address */,
                                     unsigned show_tree_character_offset) const {
   // This function doesn't call `NOT_DESTROYED()` to aid debugging.
 #if DCHECK_IS_ON()
@@ -2474,8 +2537,8 @@ void LayoutObject::DumpLayoutObject(StringBuilder& string_builder,
 
   string_builder.Append(DecoratedName());
 
-  if (dump_address)
-    string_builder.AppendFormat(" %p", this);
+  //  if (dump_address)
+  //    string_builder.AppendFormat(" %p", this);
 
   if (IsText() && To<LayoutText>(this)->IsTextFragment()) {
     string_builder.AppendFormat(

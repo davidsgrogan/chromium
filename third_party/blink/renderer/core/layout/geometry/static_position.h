@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/geometry/physical_size.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -34,6 +35,12 @@ struct CORE_EXPORT LogicalStaticPosition {
   InlineEdge inline_edge;
   BlockEdge block_edge;
   LogicalAlignmentDirection align_self_direction;
+  
+  String ToString() const {
+    return String::Format("offset = %s, inline_edge = %d, block_edge = %d",
+                          offset.ToString().Ascii().c_str(), inline_edge,
+                          block_edge);
+  }
 };
 
 // Similar to `LogicalStaticPosition` but in the physical coordinate space.

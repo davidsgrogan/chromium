@@ -58,14 +58,18 @@ const ConstraintSpace& ConstraintSpace::CloneForBlockInInlineIfNeeded(
 }
 
 String ConstraintSpace::ToString() const {
-  return String::Format("Offset: %s,%s Size: %sx%s Clearance: %s",
-                        BfcOffset().line_offset.ToString().Ascii().c_str(),
-                        BfcOffset().block_offset.ToString().Ascii().c_str(),
-                        AvailableSize().inline_size.ToString().Ascii().c_str(),
-                        AvailableSize().block_size.ToString().Ascii().c_str(),
-                        HasClearanceOffset()
-                            ? ClearanceOffset().ToString().Ascii().c_str()
-                            : "none");
+  return String::Format(
+      "available_size: %s, percentage_size: %s, fixed_inline: %d, fixed_block: "
+      "%d, fixed_block_is_definite: %d, BlockAutoBehavior: %d, cache_slot: %d,"
+      //"IsOrthogonalWritingModeRoot: %d IsNewFormattingContext: %d HasRareData:
+      //%d"
+      " IsAnonymous: %d, IsPaintedAtomically: %d",
+      available_size_.ToString().Ascii().c_str(),
+      PercentageResolutionSize().ToString().Ascii().c_str(),
+      IsFixedInlineSize(), IsFixedBlockSize(), !IsInitialBlockSizeIndefinite(),
+      (int)BlockAutoBehavior(), (int)CacheSlot(), /*IsOrthogonalWritingModeRoot(),
+      IsNewFormattingContext(), HasRareData(),*/
+      IsAnonymous(), IsPaintedAtomically());
 }
 
 }  // namespace blink

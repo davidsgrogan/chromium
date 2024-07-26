@@ -63,6 +63,8 @@ struct NonOverflowingScrollRange;
 struct PaintInfo;
 struct PhysicalBoxStrut;
 
+std::string DepthPrefix();
+
 enum BackgroundRectType {
   kBackgroundPaintedExtent,
   kBackgroundKnownOpaqueRect,
@@ -261,6 +263,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   void SetLocation(PhysicalOffset location) {
     NOT_DESTROYED();
     if (location == frame_location_) {
+    MYLOG << "SetLocation got " << location;
       return;
     }
     frame_location_ = location;
@@ -1414,7 +1417,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   // Previous value of frame_size_, updated after paint invalidation.
   PhysicalSize previous_size_;
 
- protected:
+ public:
   MinMaxSizes intrinsic_logical_widths_;
   Member<MinMaxSizesCache> min_max_sizes_cache_;
 
@@ -1422,6 +1425,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   LayoutResultList layout_results_;
 
   friend class LayoutBoxTest;
+  friend class NGBlockNode;
 
  private:
   // The index of the first fragment item associated with this object in

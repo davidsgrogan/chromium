@@ -37,6 +37,9 @@ const LayoutResult* ReplacedLayoutAlgorithm::Layout() {
 MinMaxSizesResult ReplacedLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput&) {
   NOTREACHED();
+  MYLOG << "Top of NGReplacedLayoutAlgorithm::ComputeMinMaxSizes, "
+           "ConstraintSpace is"
+        << GetConstraintSpace().ToString();
 }
 
 // This is necessary for CanvasRenderingContext2D.drawElementImage().

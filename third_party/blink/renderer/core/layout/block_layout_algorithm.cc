@@ -44,6 +44,8 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
+#include "base/debug/stack_trace.h"
+
 namespace blink {
 namespace {
 
@@ -392,9 +394,14 @@ void BlockLayoutAlgorithm::SetBoxType(PhysicalFragment::BoxType type) {
 
 MinMaxSizesResult BlockLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput& float_input) {
-  if (auto result =
-          CalculateMinMaxSizesIgnoringChildren(node_, BorderScrollbarPadding()))
+  MYLOG << "Top of NGBlockLayoutAlgorithm::ComputeMinMaxSize, "
+           "BorderScrollbarPadding = "
+        << BorderScrollbarPadding();
+  if (auto result = CalculateMinMaxSizesIgnoringChildren(
+          node_, BorderScrollbarPadding())) {
+    MYLOG << "Returning a CalculateMinMaxSizesIgnoringChildren";
     return *result;
+  }
 
   MinMaxSizes sizes;
   bool depends_on_block_constraints = false;
@@ -417,6 +424,9 @@ MinMaxSizesResult BlockLayoutAlgorithm::ComputeMinMaxSizes(
         continue;
       }
     }
+
+    MYLOG << "In NGBlockLayoutAlgorithm::ComputeMinMaxSize, looking at child "
+          << child.MyDebugName();
 
     const ComputedStyle& child_style = child.Style();
     const EClear child_clear = child_style.Clear(Style());
@@ -473,8 +483,12 @@ MinMaxSizesResult BlockLayoutAlgorithm::ComputeMinMaxSizes(
       child_result = To<InlineNode>(child).ComputeMinMaxSizes(
           Style().GetWritingMode(), space, child_float_input);
     } else {
+      MYLOG << "About to do ComputeMinAndMaxContentContribution for "
+            << child.MyDebugName();
       child_result = ComputeMinAndMaxContentContribution(
           Style(), To<BlockNode>(child), space, child_float_input);
+      MYLOG << "child_sizes = " << child_result.sizes << " for "
+            << child.MyDebugName();
     }
     DCHECK_LE(child_result.sizes.min_size, child_result.sizes.max_size)
         << child.ToString();
@@ -553,6 +567,9 @@ MinMaxSizesResult BlockLayoutAlgorithm::ComputeMinMaxSizes(
     }
   }
 
+  MYLOG << "In ComputeMinMaxSize, " << Node().MyDebugName()
+        << " returning inner sizes = " << sizes;
+
   DCHECK_GE(sizes.min_size, LayoutUnit());
   DCHECK_LE(sizes.min_size, sizes.max_size) << Node().ToString();
 
@@ -588,6 +605,7 @@ const LayoutResult* BlockLayoutAlgorithm::Layout() {
   // Inline children require an inline child layout context to be
   // passed between siblings. We want to stack-allocate that one, but
   // only on demand, as it's quite big.
+  MYLOG << "border_box_size_ = " << container_builder_.InitialBorderBoxSize();
   InlineNode inline_child(nullptr);
   if (Node().IsInlineFormattingContextRoot(&inline_child)) {
     result = LayoutInlineChild(inline_child);
@@ -755,6 +773,17 @@ NOINLINE const LayoutResult* BlockLayoutAlgorithm::RelayoutForTextBoxTrimEnd() {
 
 inline const LayoutResult* BlockLayoutAlgorithm::Layout(
     InlineChildLayoutContext* inline_child_layout_context) {
+  const LogicalSize border_box_size = container_builder_.InitialBorderBoxSize();
+  if (Node().IsEither()) {
+    AMA << "";
+    AMA << "Top of NGBlockLayoutAlgorithm::Layout for "
+        << (Node().GetLayoutBox()->IsMine() ? "IsMine()" : "IsMine2()")
+        << " border_box_size = " << border_box_size
+        << " CS = " << GetConstraintSpace().ToString();
+    AMA << "";
+    //    base::debug::StackTrace().Print();
+  }
+
   DCHECK_EQ(!!inline_child_layout_context,
             Node().IsInlineFormattingContextRoot());
   container_builder_.SetIsInlineFormattingContext(inline_child_layout_context);
@@ -2264,6 +2293,7 @@ LayoutResult::EStatus BlockLayoutAlgorithm::HandleInflow(
       ComputeChildData(*previous_inflow_position, child, child_break_token,
                        /* is_new_fc */ false);
   child_data.is_pushed_by_floats = is_pushed_by_floats;
+  MYLOG << "About to call CreateConstraintSpaceForChild from HandleInflow";
   ConstraintSpace child_space = CreateConstraintSpaceForChild(
       child, child_break_token, child_data, ChildAvailableSize(),
       /* is_new_fc */ false, forced_bfc_block_offset,
@@ -2473,6 +2503,7 @@ LayoutResult::EStatus BlockLayoutAlgorithm::FinishInflow(
     ConstraintSpace new_child_space = CreateConstraintSpaceForChild(
         child, child_break_token, *child_data, ChildAvailableSize(),
         /* is_new_fc */ false, child_bfc_block_offset);
+    MYLOG << "Calling LayoutInflow from FinishInflow";
     layout_result =
         LayoutInflow(new_child_space, child_break_token, early_break_,
                      column_spanner_path_, &child, inline_child_layout_context);
@@ -2494,6 +2525,7 @@ LayoutResult::EStatus BlockLayoutAlgorithm::FinishInflow(
       new_child_space = CreateConstraintSpaceForChild(
           child, child_break_token, *child_data, ChildAvailableSize(),
           /* is_new_fc */ false, child_bfc_block_offset);
+      MYLOG << "Calling LayoutInflow from FinishInflow";
       layout_result = LayoutInflow(new_child_space, child_break_token,
                                    early_break_, column_spanner_path_, &child,
                                    inline_child_layout_context);
@@ -2650,6 +2682,7 @@ LayoutResult::EStatus BlockLayoutAlgorithm::FinishInflow(
     PropagateBaselineFromBlockChild(physical_fragment, child_data->margins,
                                     logical_offset.block_offset);
   }
+  MYLOG << "Calling AddResult with logical_offset = " << logical_offset;
 
   if (IsA<BlockNode>(child)) {
     container_builder_.AddResult(*layout_result, logical_offset,
@@ -3311,6 +3344,9 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
   const auto& constraint_space = GetConstraintSpace();
   ConstraintSpaceBuilder builder(constraint_space, child_writing_direction,
                                  is_new_fc);
+  MYLOG << "Top of CreateConstraintSpaceForChild where child is "
+        << child.MyDebugName() << " and I am " << MyDebugName();
+  // base::debug::StackTrace().Print();
 
   const bool is_in_parallel_flow =
       IsParallelWritingMode(constraint_space.GetWritingMode(),
@@ -3548,7 +3584,6 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
     builder.SetIgnoreMarginsForStretch(constraint_space.GetWritingMode(),
                                        sides);
   }
-
   return builder.ToConstraintSpace();
 }
 

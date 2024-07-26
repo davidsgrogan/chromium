@@ -171,31 +171,32 @@ class BacktraceOutputHandler {
 };
 
 #if defined(HAVE_BACKTRACE)
-void OutputPointer(const void* pointer, BacktraceOutputHandler* handler) {
-  // This should be more than enough to store a 64-bit number in hex:
-  // 16 hex digits + 1 for null-terminator.
-  char buf[17] = {'\0'};
-  handler->HandleOutput("0x");
-  internal::itoa_r(reinterpret_cast<intptr_t>(pointer), 16, 12, buf);
-  handler->HandleOutput(buf);
-}
+// void OutputPointer(const void* pointer, BacktraceOutputHandler* handler) {
+//  // This should be more than enough to store a 64-bit number in hex:
+//  // 16 hex digits + 1 for null-terminator.
+//  char buf[17] = {'\0'};
+//  handler->HandleOutput("0x");
+//  internal::itoa_r(reinterpret_cast<intptr_t>(pointer), 16, 12, buf);
+//  handler->HandleOutput(buf);
+//}
 
 #if defined(HAVE_DLADDR) || defined(USE_SYMBOLIZE)
-void OutputValue(size_t value, BacktraceOutputHandler* handler) {
-  // Max unsigned 64-bit number in decimal has 20 digits (18446744073709551615).
-  // Hence, 30 digits should be more than enough to represent it in decimal
-  // (including the null-terminator).
-  char buf[30] = {'\0'};
-  internal::itoa_r(static_cast<intptr_t>(value), 10, 1, buf);
-  handler->HandleOutput(buf);
-}
+// void OutputValue(size_t value, BacktraceOutputHandler* handler) {
+//  Max unsigned 64-bit number in decimal has 20 digits (18446744073709551615).
+//  Hence, 30 digits should be more than enough to represent it in decimal
+//  (including the null-terminator).
+// char buf[30] = {'\0'};
+//  internal::itoa_r(static_cast<intptr_t>(value), buf, sizeof(buf), 10, 1);
+//  internal::itoa_r(static_cast<intptr_t>(value), 10, 1, buf);
+//  handler->HandleOutput(buf);
+// }
 #endif  // defined(HAVE_DLADDR) || defined(USE_SYMBOLIZE)
 
 #if defined(USE_SYMBOLIZE)
-void OutputFrameId(size_t frame_id, BacktraceOutputHandler* handler) {
-  handler->HandleOutput("#");
-  OutputValue(frame_id, handler);
-}
+// void OutputFrameId(size_t frame_id, BacktraceOutputHandler* handler) {
+//   handler->HandleOutput("#");
+//   OutputValue(frame_id, handler);
+// }
 #endif  // defined(USE_SYMBOLIZE)
 
 void ProcessBacktrace(span<const void* const> traces,
@@ -218,10 +219,10 @@ void ProcessBacktrace(span<const void* const> traces,
       handler->HandleOutput(prefix_string.c_str());
     }
 
-    OutputFrameId(i, handler);
-    handler->HandleOutput(" ");
-    OutputPointer(traces[i], handler);
-    handler->HandleOutput(" ");
+    //    OutputFrameId(i, handler);
+    //   handler->HandleOutput(" ");
+    //   OutputPointer(traces[i], handler);
+    //    handler->HandleOutput(" ");
 
     std::array<char, 1024> buf = {};
 
@@ -311,9 +312,9 @@ void ProcessBacktrace(span<const void* const> traces,
   }
 
   if (!printed) {
-    for (const void* const trace : traces) {
+    for ([[maybe_unused]] const void* const trace : traces) {
       handler->HandleOutput(" [");
-      OutputPointer(trace, handler);
+//      OutputPointer(trace, handler);
       handler->HandleOutput("]\n");
     }
   }

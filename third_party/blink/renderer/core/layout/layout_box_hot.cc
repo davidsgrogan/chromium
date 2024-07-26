@@ -79,6 +79,12 @@ const LayoutResult* LayoutBox::CachedLayoutResult(
     LayoutCacheStatus* out_cache_status) {
   NOT_DESTROYED();
   *out_cache_status = LayoutCacheStatus::kNeedsLayout;
+  if (initial_fragment_geometry->has_value()) {
+    MYLOG << initial_fragment_geometry->value().ToString()
+          << " <- initial_fragment_geometry";
+  } else {
+    MYLOG << "No fragment geometry";
+  }
 
   if (SelfNeedsFullLayout()) {
     return nullptr;
@@ -170,6 +176,7 @@ const LayoutResult* LayoutBox::CachedLayoutResult(
         node, break_token, *cached_layout_result, new_space,
         initial_fragment_geometry);
   }
+  MYLOG << (int)size_cache_status << " <- size_cache_status";
 
   // If our size may change (or we know a descendants size may change), we miss
   // the cache.

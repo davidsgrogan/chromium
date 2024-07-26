@@ -23,6 +23,8 @@
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
 
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+
 namespace blink {
 
 LayoutUnit ResolveInlineLengthInternal(
@@ -100,10 +102,18 @@ LayoutUnit ResolveInlineLengthInternal(
         return kIndefiniteSize;
       }
 
-      if (style.BoxSizing() == EBoxSizing::kBorderBox)
+      if (g_debug) {
+        // AMA << "Resolving percentage/fixed InlineLength, "
+        //               "percentage_resolution_size = "
+        //            << percentage_resolution_size << ", value = " << value;
+      }
+
+      if (style.BoxSizing() == EBoxSizing::kBorderBox) {
         value = std::max(border_padding.InlineSum(), value);
-      else
+      } else {
+        // This seems to not include scrollbar width??
         value += border_padding.InlineSum();
+      }
       return value;
     }
     case Length::kContent:
@@ -160,6 +170,31 @@ LayoutUnit ResolveInlineLengthInternal(
   }
 }
 
+bool g_debug = false;
+int g_depth = 0;
+
+std::string DepthPrefix() {
+  StringBuilder to_ret;
+  Vector<String> a = {
+      "_11", "_22", "_33", "_44", "_55", "_66",
+  };
+  int ignore_first = 3;
+  for (int i = ignore_first;
+       i <= std::min(g_depth, (int)a.size() + ignore_first - 1); i++) {
+    to_ret.Append(a[i - ignore_first]);
+  }
+  if (g_depth > (int)a.size() + ignore_first - 1) {
+    to_ret.Append("_**");
+  }
+  return std::string(to_ret.ToString().Utf8().data());
+}
+
+bool NewF() {
+  return RuntimeEnabledFeatures::NewFEnabled();
+}
+bool OldF() {
+  return !NewF();
+}
 LayoutUnit ResolveBlockLengthInternal(
     const ConstraintSpace& constraint_space,
     const ComputedStyle& style,
@@ -171,6 +206,13 @@ LayoutUnit ResolveBlockLengthInternal(
     const LayoutUnit* override_percentage_resolution_size,
     BlockSizeFunctionRef block_size_func) {
   DCHECK_EQ(constraint_space.GetWritingMode(), style.GetWritingMode());
+  if (g_debug) {
+    //    AMA << "Top of ResolveBlockLength. length=" << length.ToString()
+    //               << " content_size = " << content_size << " type = " <<
+    //               (int)type
+    //               << " writing_mode = " <<
+    //               (int)constraint_space.GetWritingMode();
+  }
 
   // For min-block-size, this might still be 'auto'.
   const Length& length =
@@ -362,6 +404,10 @@ MinMaxSizesResult ComputeMinAndMaxContentContributionInternal(
     const BlockNode& child,
     const ConstraintSpace& space,
     MinMaxSizesFunctionRef original_min_max_sizes_func) {
+  if (child.IsEither()) {
+    AMA << "IsEither top of ComputeMinAndMaxContentContributionInternal for "
+           "breakpoint";
+  }
   const auto& style = child.Style();
   const auto border_padding =
       ComputeBorders(space, child) + ComputePadding(space, style);
@@ -463,6 +509,10 @@ MinMaxSizesResult ComputeMinAndMaxContentContribution(
     const BlockNode& child,
     const ConstraintSpace& space,
     const MinMaxSizesFloatInput float_input) {
+  if (g_debug) {
+    AMA << "Top of ComputeMinAndMaxContentContribution for child "
+        << child.MyDebugName();
+  }
   const auto& child_style = child.Style();
   const auto parent_writing_mode = parent_style.GetWritingMode();
   const auto child_writing_mode = child_style.GetWritingMode();
@@ -891,6 +941,10 @@ LayoutUnit ComputeBlockSizeForFragmentInternal(
       space, node, border_padding,
       apply_automatic_min_size ? &Length::MinIntrinsic() : nullptr,
       BlockSizeFunc, override_available_size);
+  if (g_debug) {
+    AMA << min_max
+        << " <- ComputeMinMaxBlockSizes in ComputeBlockSizeForFragmentInternal";
+  }
 
   // When fragmentation is present often want to encompass the intrinsic size.
   if (space.MinBlockSizeShouldEncompassIntrinsicSize() &&
@@ -913,6 +967,11 @@ LayoutUnit ComputeBlockSizeForFragment(const ConstraintSpace& constraint_space,
   DCHECK(override_available_size == kIndefiniteSize || node.IsTable());
 
   if (constraint_space.IsFixedBlockSize()) {
+    if (node.IsTable()) {
+      AMA << "In ComputeBlockSizeForFragment, override_available_size "
+             "for the table = "
+          << override_available_size;
+    }
     LayoutUnit block_size = override_available_size == kIndefiniteSize
                                 ? constraint_space.AvailableSize().block_size
                                 : override_available_size;
@@ -1789,8 +1848,12 @@ LogicalSize CalculateChildPercentageSize(
   if (space.IsTableCellChild())
     return child_available_size;
 
-  return AdjustChildPercentageSize(space, node, child_available_size,
-                                   space.PercentageResolutionBlockSize());
+  LogicalSize to_return = AdjustChildPercentageSize(
+      space, node, child_available_size, space.PercentageResolutionBlockSize());
+  if (node.GetLayoutBox()->IsMine()) {
+    //    AMA << "IsMine returning child percentage size of = " << to_return;
+  }
+  return to_return;
 }
 
 LogicalSize CalculateReplacedChildPercentageSize(
@@ -1872,6 +1935,12 @@ std::optional<MinMaxSizesResult> CalculateMinMaxSizesIgnoringChildren(
     const BoxStrut& border_scrollbar_padding) {
   MinMaxSizes sizes;
   sizes += border_scrollbar_padding.InlineSum();
+  AMA << "Top of CalculateMinMaxSizesIgnoringChildren, sizes = " << sizes
+      << " border_scrollbar_padding = " << border_scrollbar_padding
+      << " border_scrollbar_padding.left = "
+      << border_scrollbar_padding.inline_start.RawValue()
+      << " border_scrollbar_padding.right = "
+      << border_scrollbar_padding.inline_end.RawValue();
 
   // Check if the intrinsic size was overridden.
   const LayoutUnit override_size = node.OverrideIntrinsicContentInlineSize();
@@ -1895,6 +1964,8 @@ std::optional<MinMaxSizesResult> CalculateMinMaxSizesIgnoringChildren(
   // Size contained elements don't consider children for intrinsic sizing.
   // Also, if we don't have children, we can determine the size immediately.
   if (node.ShouldApplyInlineSizeContainment() || !node.FirstChild()) {
+    AMA << node.MyDebugName()
+        << " CalculateMinMaxSizesIgnoringChildren returning " << sizes;
     return MinMaxSizesResult{sizes,
                              /* depends_on_block_constraints */ false};
   }

@@ -281,6 +281,8 @@ struct CORE_EXPORT PhysicalBoxStrut {
 
   bool IsZero() const { return !top && !right && !bottom && !left; }
 
+  String ToString() const;
+
   LayoutUnit top;
   LayoutUnit right;
   LayoutUnit bottom;
@@ -293,6 +295,8 @@ struct CORE_EXPORT PhysicalBoxStrut {
         bottom(LayoutUnit(b)),
         left(LayoutUnit(l)) {}
 };
+
+CORE_EXPORT std::ostream& operator<<(std::ostream&, const PhysicalBoxStrut&);
 
 inline PhysicalBoxStrut BoxStrut::ConvertToPhysical(
     WritingDirectionMode writing_direction) const {

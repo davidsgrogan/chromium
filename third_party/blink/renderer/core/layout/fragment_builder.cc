@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
 #include "third_party/blink/renderer/core/layout/block_layout_algorithm_utils.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/physical_fragment.h"
 #include "third_party/blink/renderer/core/layout/transform_utils.h"
@@ -464,6 +465,9 @@ void FragmentBuilder::AddChildInternal(const PhysicalFragment* child,
     children_.push_front(LogicalFragmentLink(*child, child_offset));
     return;
   }
+
+  MYLOG << "adding child " << child->ToString() << " at logical offset "
+        << child_offset;
 
   if (child->IsTextControlPlaceholder()) {
     // ::placeholder should be followed by another block in order to paint
