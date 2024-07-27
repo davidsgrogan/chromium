@@ -2541,6 +2541,9 @@ void LayoutBox::AddMeasureLayoutResult(const LayoutResult* result) {
 void LayoutBox::SetCachedLayoutResult(const LayoutResult* result,
                                       wtf_size_t index) {
   NOT_DESTROYED();
+  if (IsEither()) {
+    MYLOG << "Top of SetCachedLayoutResult for breakpoint";
+  }
   if (result->GetConstraintSpaceForCaching().CacheSlot() ==
       LayoutResultCacheSlot::kMeasure) {
     DCHECK(!result->GetPhysicalFragment().GetBreakToken());
@@ -2645,6 +2648,12 @@ void LayoutBox::ReplaceLayoutResult(const LayoutResult* result,
   const auto& old_fragment = old_result->GetPhysicalFragment();
   bool got_new_fragment = &old_fragment != &fragment;
   if (got_new_fragment) {
+    // MYLOG << "In ReplaceLayoutResult, old fragment = " <<
+    // (void*)&old_fragment
+    //       << " new fragment = " << (void*)&fragment;
+    if (IsEither()) {
+      // base::debug::StackTrace().Print();
+    }
     if (HasFragmentItems()) {
       if (!index)
         InvalidateItems(*old_result);

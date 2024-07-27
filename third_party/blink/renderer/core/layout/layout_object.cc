@@ -2501,29 +2501,28 @@ bool LayoutObject::IsMine() const {
   if (!elem) {
     return false;
   }
+
   // return elem->HasClass() &&
   //        elem->ClassNames().SerializeToString() ==
   //            AtomicString("soft-dropdown toolbar-item toolbar-has-dropdown");
 
   // return elem->HasClassName("patchInfoContent");
 
-  // return (elem->HasClass() &&
-  //         elem->ClassNames().ContainsAll(SpaceSplitString(AtomicString(
-  //             "Igw0E IwRSH eGOV_ _4EzTm O1flK D8xaz fm1AK TxciK yiMZG"))));
+  // return (elem->HasClass() && elem->ClassNames().ContainsAll(
+  //                                 SpaceSplitString(AtomicString("cf ix"))));
 
   return elem->GetIdAttribute() == "mine";
 
-  //  return GetNode()->nodeName() == "TBODY" && elem->GetIdAttribute() ==
-  //  "mine";
+  // return GetNode()->nodeName() == "PICTURE";
 
-  //  if (!IsLayoutNGFlexibleBox())
-  //    return false;
-
-  //  LayoutObject* first_child = SlowFirstChild();
-  //  if (!first_child)
-  //    return false;
-  //  elem = To<Element>(first_child->GetNode());
-  //  return elem && elem->GetIdAttribute() == "pageSettingsCustomInput";
+  // if (!IsLayoutNGFlexibleBox())
+  //   return false;
+  // LayoutObject* first_child = SlowFirstChild();
+  // if (!first_child)
+  //   return false;
+  // elem = To<Element>(first_child->GetNode());
+  //
+  // return elem && elem->GetIdAttribute() == "pageSettingsCustomInput";
 }
 
 bool LayoutObject::IsMine2() const {

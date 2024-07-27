@@ -60,13 +60,16 @@ const ConstraintSpace& ConstraintSpace::CloneForBlockInInlineIfNeeded(
 String ConstraintSpace::ToString() const {
   return String::Format(
       "available_size: %s, percentage_size: %s, fixed_inline: %d, fixed_block: "
-      "%d, fixed_block_is_definite: %d, cache_slot: %d "
-      "IsOrthogonalWritingModeRoot: %d IsNewFormattingContext: %d",
+      "%d, fixed_block_is_definite: %d, BlockAutoBehavior: %d, cache_slot: %d,"
+      //"IsOrthogonalWritingModeRoot: %d IsNewFormattingContext: %d HasRareData:
+      //%d"
+      " IsAnonymous: %d, IsPaintedAtomically: %d",
       available_size_.ToString().Ascii().c_str(),
       PercentageResolutionSize().ToString().Ascii().c_str(),
       IsFixedInlineSize(), IsFixedBlockSize(), !IsInitialBlockSizeIndefinite(),
-      (int)CacheSlot(), IsOrthogonalWritingModeRoot(),
-      IsNewFormattingContext());
+      (int)BlockAutoBehavior(), (int)CacheSlot(), /*IsOrthogonalWritingModeRoot(),
+      IsNewFormattingContext(), HasRareData(),*/
+      IsAnonymous(), IsPaintedAtomically());
 }
 
 }  // namespace blink

@@ -248,6 +248,7 @@ class FlexLine {
   }
 
   void SetContainerMainInnerSize(LayoutUnit size) {
+    AMA << "SetContainerMainInnerSize got " << size;
     container_main_inner_size_ = size;
   }
 
@@ -413,6 +414,7 @@ class CORE_EXPORT FlexibleBoxAlgorithm {
   static ItemPosition TranslateItemPosition(const ComputedStyle& flexbox_style,
                                             const ComputedStyle& child_style,
                                             ItemPosition align);
+  static String ItemPositionString(ItemPosition a);
 
   static LayoutUnit InitialContentPositionOffset(
       const ComputedStyle& style,

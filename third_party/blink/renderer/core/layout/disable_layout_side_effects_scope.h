@@ -5,7 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_DISABLE_LAYOUT_SIDE_EFFECTS_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_DISABLE_LAYOUT_SIDE_EFFECTS_SCOPE_H_
 
+#include "base/logging.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
@@ -18,10 +20,14 @@ class CORE_EXPORT DisableLayoutSideEffectsScope {
   STACK_ALLOCATED();
 
  public:
-  DisableLayoutSideEffectsScope() { ++count_; }
+  DisableLayoutSideEffectsScope() {
+    ++count_;
+    // AMA << "count incremented, at" << count_;
+  }
   ~DisableLayoutSideEffectsScope() {
     DCHECK(count_);
     --count_;
+    // AMA << "count decremented, at" << count_;
   }
 
   static bool IsDisabled() { return count_; }

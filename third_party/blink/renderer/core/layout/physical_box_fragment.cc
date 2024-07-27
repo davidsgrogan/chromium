@@ -433,7 +433,15 @@ const LayoutBox* PhysicalBoxFragment::OwnerLayoutBox() const {
     }
   } else {
     // Check |this| and the |LayoutBox| that produced it are in sync.
-    DCHECK(owner_box->PhysicalFragments().Contains(*this));
+    DCHECK(owner_box->PhysicalFragments().Contains(*this))
+        << "\n owner: " << owner_box->MyDebugName()
+        << "\n *this: " << GetLayoutObject()->MyDebugName()
+        << "\n this = " << (void*)this
+        << "\n owner_box->PhysicalFragments().size = "
+        << owner_box->PhysicalFragments().Size() << "\n front: "
+        << ((owner_box->PhysicalFragments().Size() > 0)
+                ? (void*)&owner_box->PhysicalFragments().front()
+                : 0x0);
     DCHECK_EQ(IsFirstForNode(), this == owner_box->GetPhysicalFragment(0));
   }
 #endif

@@ -305,11 +305,14 @@ void BlockLayoutAlgorithm::SetBoxType(PhysicalFragment::BoxType type) {
 
 MinMaxSizesResult BlockLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput& float_input) {
-  MYLOG << "Top of NGBlockLayoutAlgorithm::ComputeMinMaxSize, border_padding = "
-        << BorderPadding();
-  if (auto result =
-          CalculateMinMaxSizesIgnoringChildren(node_, BorderScrollbarPadding()))
+  MYLOG << "Top of NGBlockLayoutAlgorithm::ComputeMinMaxSize, "
+           "BorderScrollbarPadding = "
+        << BorderScrollbarPadding();
+  if (auto result = CalculateMinMaxSizesIgnoringChildren(
+          node_, BorderScrollbarPadding())) {
+    MYLOG << "Returning a CalculateMinMaxSizesIgnoringChildren";
     return *result;
+  }
 
   MinMaxSizes sizes;
   bool depends_on_block_constraints = false;
@@ -3264,7 +3267,8 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
   }
 
   ConstraintSpace dogs = builder.ToConstraintSpace();
-  MYLOG << "Returning " << dogs.ToString() << " for that child";
+  MYLOG << "CreateConstraintSpaceForChild returning " << dogs.ToString()
+        << " for child " << child.MyDebugName();
   return dogs;
 }
 

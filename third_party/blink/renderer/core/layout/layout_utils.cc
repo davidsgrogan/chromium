@@ -149,7 +149,10 @@ bool SizeMayChange(const BlockNode& node,
         InlineLengthMayChange(style, style.LogicalMaxWidth(),
                               LengthResolveType::kMaxSize, new_space, old_space,
                               layout_result))
-      return true;
+      if (node.IsEither()) {
+        AMA << "Returning SizeMayChange=true because InlineLengthMayChange";
+      }
+    return true;
   }
 
   if (style.MayHavePadding() &&
@@ -160,6 +163,10 @@ bool SizeMayChange(const BlockNode& node,
     if (style.PaddingTop().HasPercent() || style.PaddingRight().HasPercent() ||
         style.PaddingBottom().HasPercent() ||
         style.PaddingLeft().HasPercent()) {
+      if (node.IsEither()) {
+        AMA << "In SizeMayChange, return true because "
+               "has percent padding";
+      }
       return true;
     }
   }
@@ -186,9 +193,16 @@ LayoutCacheStatus CalculateSizeBasedLayoutCacheStatusWithGeometry(
   const auto& physical_fragment =
       To<PhysicalBoxFragment>(layout_result.GetPhysicalFragment());
   LogicalBoxFragment fragment(style.GetWritingDirection(), physical_fragment);
+  if (node.IsEither()) {
+    AMA << "Got to top of CalculateSizeBasedLayoutCacheStatusWithGeometry";
+  }
 
   if (fragment_geometry.border_box_size.inline_size != fragment.InlineSize())
     return LayoutCacheStatus::kNeedsLayout;
+  if (node.IsEither()) {
+    AMA << "In CalculateSizeBasedLayoutCacheStatusWithGeometry, got past "
+           "differing inline sizes.";
+  }
 
   if (style.MayHavePadding() && fragment_geometry.padding != fragment.Padding())
     return LayoutCacheStatus::kNeedsLayout;
@@ -206,7 +220,10 @@ LayoutCacheStatus CalculateSizeBasedLayoutCacheStatusWithGeometry(
       return LayoutCacheStatus::kNeedsLayout;
     return LayoutCacheStatus::kHit;
   }
-
+  if (node.IsEither()) {
+    AMA << "In CalculateSizeBasedLayoutCacheStatusWithGeometry, got past table "
+           "check.";
+  }
   LayoutUnit block_size = fragment_geometry.border_box_size.block_size;
   bool is_initial_block_size_indefinite = block_size == kIndefiniteSize;
   if (is_initial_block_size_indefinite) {
@@ -436,6 +453,9 @@ bool IntrinsicSizeWillChange(
     const ConstraintSpace& new_space,
     std::optional<FragmentGeometry>* fragment_geometry) {
   const ComputedStyle& style = node.Style();
+  if (node.IsEither()) {
+    AMA << "Got to top of IntrinsicSizeWillChange";
+  }
   if (new_space.IsInlineAutoBehaviorStretch() && !NeedMinMaxSize(style))
     return false;
 
@@ -449,6 +469,11 @@ bool IntrinsicSizeWillChange(
                       cached_layout_result.GetPhysicalFragment())
           .InlineSize();
 
+  if (node.IsEither()) {
+    AMA << "In IntrinsicSizeWillChange, about to check inline sizes:"
+        << (*fragment_geometry)->border_box_size.inline_size << " "
+        << inline_size;
+  }
   if ((*fragment_geometry)->border_box_size.inline_size != inline_size)
     return true;
 
@@ -468,15 +493,39 @@ LayoutCacheStatus CalculateSizeBasedLayoutCacheStatus(
   const ConstraintSpace& old_space =
       cached_layout_result.GetConstraintSpaceForCaching();
 
-  if (!new_space.MaySkipLayout(old_space))
-    return LayoutCacheStatus::kNeedsLayout;
+  if (node.IsEither()) {
+    AMA << node.MineString()
+        << " CalculateSizeBasedLayoutCacheStatus is comparing against "
+           "old_space "
+        << old_space.ToString();
+  }
 
+  if (!new_space.MaySkipLayout(old_space)) {
+    if (node.IsEither()) {
+      AMA << node.MineString()
+          << " cannot skip layout near top of "
+             "CalculateSizeBasedLayoutCacheStatus";
+    }
+    return LayoutCacheStatus::kNeedsLayout;
+  }
+  if (node.IsEither()) {
+    AMA << node.MineString()
+        << " MaySkipLayout near top of CalculateSizeBasedLayoutCacheStatus";
+  }
   if (new_space.AreInlineSizeConstraintsEqual(old_space) &&
       new_space.AreBlockSizeConstraintsEqual(old_space)) {
+    if (node.IsEither()) {
+      AMA << "In CalculateSizeBasedLayoutCacheStatus, got past inline and "
+             "block sizes constraints equal";
+    }
     // It is possible that our intrinsic size has changed, check for that here.
     if (IntrinsicSizeWillChange(node, break_token, cached_layout_result,
                                 new_space, fragment_geometry))
       return LayoutCacheStatus::kNeedsLayout;
+    if (node.IsEither()) {
+      AMA << "In CalculateSizeBasedLayoutCacheStatus, got past "
+             "IntrinsicSizeWillChange";
+    }
 
     // We don't have to check our style if we know the constraint space sizes
     // will remain the same.
@@ -493,10 +542,16 @@ LayoutCacheStatus CalculateSizeBasedLayoutCacheStatus(
     *fragment_geometry =
         CalculateInitialFragmentGeometry(new_space, node, break_token);
   }
+  if (node.IsEither()) {
+    AMA << "In CalculateSizeBasedLayoutCacheStatus, got to bottom, about to "
+           "check CalculateSizeBasedLayoutCacheStatusWithGeometry";
+  }
 
   return CalculateSizeBasedLayoutCacheStatusWithGeometry(
       node, **fragment_geometry, cached_layout_result, new_space, old_space);
 }
+//  AMA << "MaySkipLegacyLayout old_space = " << old_space.ToString();
+//  AMA << "MaySkipLegacyLayout new_space = " << new_space.ToString();
 
 bool MaySkipLayoutWithinBlockFormattingContext(
     const LayoutResult& cached_layout_result,

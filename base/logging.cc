@@ -629,8 +629,8 @@ int GetVlogLevelHelper(const char* file, size_t N) {
 
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
                  bool enable_timestamp, bool enable_tickcount) {
-  g_log_process_id = enable_process_id;
-  g_log_thread_id = enable_thread_id;
+  g_log_process_id = false;
+  g_log_thread_id = false;
   g_log_timestamp = false;
   g_log_tickcount = false;
 }

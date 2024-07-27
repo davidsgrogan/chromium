@@ -76,9 +76,9 @@ LayoutUnit ResolveInlineLengthInternal(
           }});
 
       if (g_debug) {
-        AMA << "Resolving percentage/fixed InlineLength, "
-               "percentage_resolution_size = "
-            << percentage_resolution_size << ", value = " << value;
+        // AMA << "Resolving percentage/fixed InlineLength, "
+        //               "percentage_resolution_size = "
+        //            << percentage_resolution_size << ", value = " << value;
       }
 
       if (style.BoxSizing() == EBoxSizing::kBorderBox) {
@@ -135,10 +135,11 @@ std::string DepthPrefix() {
       "_11", "_22", "_33", "_44", "_55", "_66",
   };
   int ignore_first = 3;
-  for (int i = ignore_first; i <= std::min(g_depth, (int)a.size()); i++) {
+  for (int i = ignore_first;
+       i <= std::min(g_depth, (int)a.size() + ignore_first - 1); i++) {
     to_ret.Append(a[i - ignore_first]);
   }
-  if (g_depth > (int)a.size()) {
+  if (g_depth > (int)a.size() + ignore_first - 1) {
     to_ret.Append("_**");
   }
   return std::string(to_ret.ToString().Utf8().data());
@@ -333,6 +334,10 @@ MinMaxSizesResult ComputeMinAndMaxContentContributionInternal(
     const BlockNode& child,
     const ConstraintSpace& space,
     MinMaxSizesFunctionRef min_max_sizes_func) {
+  if (child.IsEither()) {
+    AMA << "IsEither top of ComputeMinAndMaxContentContributionInternal for "
+           "breakpoint";
+  }
   const auto& style = child.Style();
 
   const bool is_parallel_with_parent =
@@ -394,6 +399,10 @@ MinMaxSizesResult ComputeMinAndMaxContentContribution(
     const BlockNode& child,
     const ConstraintSpace& space,
     const MinMaxSizesFloatInput float_input) {
+  if (g_debug) {
+    AMA << "Top of ComputeMinAndMaxContentContribution for child "
+        << child.MyDebugName();
+  }
   const auto& child_style = child.Style();
   const auto parent_writing_mode = parent_style.GetWritingMode();
   const auto child_writing_mode = child_style.GetWritingMode();
@@ -764,6 +773,11 @@ LayoutUnit ComputeBlockSizeForFragment(const ConstraintSpace& constraint_space,
          style.IsDisplayTableBox());
 
   if (constraint_space.IsFixedBlockSize()) {
+    if (style.IsDisplayTableBox()) {
+      AMA << "In ComputeBlockSizeForFragment, override_available_size "
+             "for the table = "
+          << override_available_size;
+    }
     LayoutUnit block_size = override_available_size == kIndefiniteSize
                                 ? constraint_space.AvailableSize().block_size
                                 : override_available_size;
@@ -1627,7 +1641,7 @@ LogicalSize CalculateChildPercentageSize(
   LogicalSize to_return = AdjustChildPercentageSize(
       space, node, child_available_size, space.PercentageResolutionBlockSize());
   if (node.GetLayoutBox()->IsMine()) {
-    AMA << "IsMine returning child percentage size of = " << to_return;
+    //    AMA << "IsMine returning child percentage size of = " << to_return;
   }
   return to_return;
 }
@@ -1726,17 +1740,33 @@ std::optional<MinMaxSizesResult> CalculateMinMaxSizesIgnoringChildren(
     const BoxStrut& border_scrollbar_padding) {
   MinMaxSizes sizes;
   sizes += border_scrollbar_padding.InlineSum();
+  AMA << "Top of CalculateMinMaxSizesIgnoringChildren, sizes = " << sizes
+      << " border_scrollbar_padding = " << border_scrollbar_padding
+      << " border_scrollbar_padding.left = "
+      << border_scrollbar_padding.inline_start.RawValue()
+      << " border_scrollbar_padding.right = "
+      << border_scrollbar_padding.inline_end.RawValue();
 
   // If intrinsic size was overridden, then use that.
   const LayoutUnit intrinsic_size_override =
       node.OverrideIntrinsicContentInlineSize();
   if (intrinsic_size_override != kIndefiniteSize) {
+    if (node.IsEither()) {
+      AMA << "In SpaceCalculateMinMaxSizesIgnoringChildren, got an "
+             "intrinsic_size_override "
+          << intrinsic_size_override;
+    }
     sizes += intrinsic_size_override;
     return MinMaxSizesResult{sizes,
                              /* depends_on_block_constraints */ false};
   } else {
     LayoutUnit default_inline_size = node.DefaultIntrinsicContentInlineSize();
     if (default_inline_size != kIndefiniteSize) {
+      if (node.IsEither()) {
+        AMA << "In SpaceCalculateMinMaxSizesIgnoringChildren, got a "
+               "default_inline_size "
+            << default_inline_size;
+      }
       sizes += default_inline_size;
       // <textarea>'s intrinsic size should ignore scrollbar existence.
       if (node.IsTextArea())
@@ -1749,6 +1779,8 @@ std::optional<MinMaxSizesResult> CalculateMinMaxSizesIgnoringChildren(
   // Size contained elements don't consider children for intrinsic sizing.
   // Also, if we don't have children, we can determine the size immediately.
   if (node.ShouldApplyInlineSizeContainment() || !node.FirstChild()) {
+    AMA << node.MyDebugName()
+        << " CalculateMinMaxSizesIgnoringChildren returning " << sizes;
     return MinMaxSizesResult{sizes,
                              /* depends_on_block_constraints */ false};
   }

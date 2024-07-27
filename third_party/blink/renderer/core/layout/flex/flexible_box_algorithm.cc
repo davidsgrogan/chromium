@@ -30,6 +30,7 @@
 
 #include "third_party/blink/renderer/core/layout/flex/flexible_box_algorithm.h"
 
+#include "base/debug/stack_trace.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/flex/ng_flex_line.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
@@ -110,6 +111,18 @@ FlexItem::FlexItem(const FlexibleBoxAlgorithm* algorithm,
       ng_input_node_(/* LayoutBox* */ nullptr) {
   DCHECK_GE(min_max_main_sizes.max_size, LayoutUnit())
       << "Use LayoutUnit::Max() for no max size";
+  AMA << "Constructing a FlexItem:"
+      << "\n\tflex_base_content_size = " << flex_base_content_size
+      << "\n\thypothetical_main_content_size = "
+      << hypothetical_main_content_size_
+      << "\n\tmin_max_main_sizes = " << min_max_main_sizes
+      << "\n\tmin_max_cross_sizes = "
+      << (min_max_cross_sizes.has_value()
+              ? *min_max_cross_sizes
+              : MinMaxSizes{kIndefiniteSize, kIndefiniteSize})
+      << "\n\tmain_axis_border_padding = " << main_axis_border_padding
+      << "\n\tphysical_margins = " << physical_margins;
+  DCHECK_GE(flex_base_content_size, 0);
 }
 
 bool FlexItem::MainAxisIsInlineAxis() const {
@@ -299,6 +312,7 @@ void FlexItem::ComputeStretchedSize() {
   LayoutUnit stretched_size =
       std::max(cross_axis_border_padding_,
                Line()->cross_axis_extent_ - CrossAxisMarginExtent());
+  //      AMA << "Legacy Setting cross_axis_size to " << cross_axis_size_;
 
   // TODO(https://crbug.com/313072): This probably needs some work to support
   // calc-size(auto, ...).
@@ -306,6 +320,7 @@ void FlexItem::ComputeStretchedSize() {
       (!MainAxisIsInlineAxis() && style_->LogicalWidth().IsAuto())) {
     cross_axis_size_ =
         min_max_cross_sizes_->ClampSizeToMinAndMax(stretched_size);
+    //    AMA << "NG Setting cross_axis_size to " << cross_axis_size_;
   }
 }
 
@@ -386,6 +401,8 @@ void FlexLine::FreezeViolations(ViolationsVector& violations) {
 }
 
 void FlexLine::FreezeInflexibleItems() {
+  // AMA << "Top of FlexLine::FreezeInflexibleItems()";
+
   // Per https://drafts.csswg.org/css-flexbox/#resolve-flexible-lengths step 2,
   // we freeze all items with a flex factor of 0 as well as those with a min/max
   // size violation.
@@ -401,6 +418,17 @@ void FlexLine::FreezeInflexibleItems() {
         (flex_sign == kPositiveFlexibility)
             ? flex_item.style_->ResolvedFlexGrow(flex_box_style)
             : flex_item.style_->ResolvedFlexShrink(flex_box_style);
+    //    AMA << "Looking at item " << i
+    //               << ", flex_item.flex_base_content_size = "
+    //               << flex_item.flex_base_content_size_
+    //               << ", flex_item.hypothetical_main_content_size = "
+    //               << flex_item.hypothetical_main_content_size_ << ",
+    //               flex_sign = "
+    //               << ((flex_sign == kPositiveFlexibility) ?
+    //               "kPositiveFlexibility"
+    //                                                       :
+    //                                                       "kNegativeFlexibility")
+    //               << ", flex_factor = " << flex_factor;
     if (flex_factor == 0 ||
         (flex_sign == kPositiveFlexibility &&
          flex_item.flex_base_content_size_ >
@@ -410,6 +438,9 @@ void FlexLine::FreezeInflexibleItems() {
              flex_item.hypothetical_main_content_size_)) {
       flex_item.flexed_content_size_ =
           flex_item.hypothetical_main_content_size_;
+      //      AMA << "flex_item.flexed_content_size = "
+      //                 << flex_item.flexed_content_size_ << ", from
+      //                 FreezeInflexible";
       new_inflexible_items.push_back(&flex_item);
     }
   }
@@ -442,7 +473,14 @@ bool FlexLine::ResolveFlexibleLengths() {
       continue;
 
     LayoutUnit child_size = flex_item.flex_base_content_size_;
+    //    AMA << "At top of Flexing loop, looking at "
+    //        << flex_item.ng_input_node_.MyDebugName()
+    //        << " with child_size = " << child_size;
     double extra_space = 0;
+    //    AMA << "remaining_free_space = " << remaining_free_space_;
+    //    AMA << "total_flex_grow = " << total_flex_grow_;
+    //    AMA << "total_weighted_flex_shrink_ = " <<
+    //    total_weighted_flex_shrink_;
     if (remaining_free_space_ > 0 && total_flex_grow_ > 0 &&
         flex_sign == kPositiveFlexibility && std::isfinite(total_flex_grow_)) {
       extra_space = remaining_free_space_ *
@@ -456,10 +494,12 @@ bool FlexLine::ResolveFlexibleLengths() {
                     flex_item.style_->ResolvedFlexShrink(flex_box_style) *
                     flex_item.flex_base_content_size_ /
                     total_weighted_flex_shrink_;
+      //      AMA << "extra_space = " << extra_space;
     }
     if (std::isfinite(extra_space))
       child_size += LayoutUnit::FromFloatRound(extra_space);
 
+    //   AMA << "now child_size = " << child_size;
     LayoutUnit adjusted_child_size = flex_item.ClampSizeToMinAndMax(child_size);
     DCHECK_GE(adjusted_child_size, 0);
     flex_item.flexed_content_size_ = adjusted_child_size;
@@ -517,13 +557,17 @@ void FlexLine::ComputeLineItemsPosition(LayoutUnit main_axis_start_offset,
   const auto& style = algorithm_->StyleRef();
   const bool is_webkit_box = style.IsDeprecatedWebkitBox();
   const bool is_wrap_reverse = style.FlexWrap() == EFlexWrap::kWrapReverse;
-
+  //  AMA << "ComputeLineItemsPosition"
+  //             << "\n\tmain_axis_offset_ = " << main_axis_offset_
+  //             << "\n\tmain_axis_start_offset = " << main_axis_start_offset
+  //             << "\n\tcross_axis_offset = " << cross_axis_offset;
   main_axis_offset_ = main_axis_start_offset;
   // Recalculate the remaining free space. The adjustment for flex factors
   // between 0..1 means we can't just use remainingFreeSpace here.
   LayoutUnit total_item_size;
   for (wtf_size_t i = 0; i < line_items_.size(); ++i)
     total_item_size += line_items_[i].FlexedMarginBoxSize();
+  //  AMA << "container_main_inner_size_ = " << container_main_inner_size_;
   remaining_free_space_ =
       container_main_inner_size_ - total_item_size -
       (line_items_.size() - 1) * algorithm_->gap_between_items_;
@@ -539,7 +583,9 @@ void FlexLine::ComputeLineItemsPosition(LayoutUnit main_axis_start_offset,
       FlexibleBoxAlgorithm::InitialContentPositionOffset(
           style, available_free_space, justify_content, line_items_.size(),
           is_reversed);
+  // AMA << "initial_position = " << initial_position;
   LayoutUnit main_axis_offset = initial_position + main_axis_start_offset;
+  // AMA << "main_axis_offset = " << main_axis_offset;
 
   // When a -webkit-box has negative available-space it always places that
   // overflow to the line-right. (Even if we have "direction: rtl" or
@@ -585,6 +631,8 @@ void FlexLine::ComputeLineItemsPosition(LayoutUnit main_axis_start_offset,
             max_minor_ascent_ + max_minor_descent;
       }
     } else {
+      //      AMA << "flex_item.cross_axis_size = " <<
+      //      flex_item.cross_axis_size_;
       child_cross_axis_margin_box_extent =
           flex_item.cross_axis_size_ + flex_item.CrossAxisMarginExtent();
     }
@@ -592,18 +640,30 @@ void FlexLine::ComputeLineItemsPosition(LayoutUnit main_axis_start_offset,
                                            child_cross_axis_margin_box_extent);
 
     main_axis_offset += flex_item.FlowAwareMarginStart();
+    //    AMA << "main_axis_offset = " << main_axis_offset;
 
     LayoutUnit child_main_extent = flex_item.FlexedBorderBoxSize();
     // In an RTL column situation, this will apply the margin-right/margin-end
     // on the left. This will be fixed later in
     // LayoutFlexibleBox::FlipForRightToLeftColumn.
+    //   AMA << "container_logical_width = " << container_logical_width_
+    //              << " main_axis_offset = " << main_axis_offset
+    //              << " cross_axis_offset = " << cross_axis_offset
+    //              << " child_main_extent = " << child_main_extent
+    //              << " should_flip_main_axis = " << should_flip_main_axis
+    //              << " flex_item.FlowAwareMarginEnd() = "
+    //              << flex_item.FlowAwareMarginEnd()
+    //              << " flex_item.FlowAwareMarginBefore() = "
+    //              << flex_item.FlowAwareMarginBefore();
     *flex_item.offset_ = FlexOffset(
         style.ResolvedIsRowReverseFlexDirection()
             ? container_logical_width_ - main_axis_offset - child_main_extent
             : main_axis_offset,
         cross_axis_offset + flex_item.FlowAwareMarginBefore());
     main_axis_offset += child_main_extent + flex_item.FlowAwareMarginEnd();
+    //    AMA << "main_axis_offset = " << main_axis_offset;
 
+    //    AMA << "flex_item.desired_location = " << flex_item.desired_location_;
     if (i != line_items_.size() - 1) {
       // The last item does not get extra space added.
       LayoutUnit space_between =
@@ -685,10 +745,16 @@ FlexibleBoxAlgorithm::FlexibleBoxAlgorithm(const ComputedStyle* style,
     if (percent_resolution_sizes.block_size == LayoutUnit(-1))
       UseCounter::Count(document, WebFeature::kFlexRowGapPercentIndefinite);
   }
+  // AMA << "FlexLayoutAlgorithm ctor, line_break_length = "
+  //           << line_break_length;
+  //             << " gap_between_items = " << gap_between_items_
+  //             << " gap_between_lines = " << gap_between_lines_;
 }
 
 FlexLine* FlexibleBoxAlgorithm::ComputeNextFlexLine(
     LayoutUnit container_logical_width) {
+  //  AMA << "ComputeNextFlexLine, container_logical_width = "
+  //            << container_logical_width;
   LayoutUnit sum_flex_base_size;
   double total_flex_grow = 0;
   double total_flex_shrink = 0;
@@ -701,6 +767,7 @@ FlexLine* FlexibleBoxAlgorithm::ComputeNextFlexLine(
 
   for (; next_item_index_ < all_items_.size(); ++next_item_index_) {
     FlexItem& flex_item = all_items_[next_item_index_];
+    // AMA << "Checking flex_item " << &flex_item;
     if (IsMultiline() &&
         sum_hypothetical_main_size +
                 flex_item.HypotheticalMainAxisMarginBoxSize() >
@@ -718,6 +785,8 @@ FlexLine* FlexibleBoxAlgorithm::ComputeNextFlexLine(
         flex_shrink * flex_item.flex_base_content_size_;
     sum_hypothetical_main_size +=
         flex_item.HypotheticalMainAxisMarginBoxSize() + gap_between_items_;
+    // AMA << "sum_hypothetical_main_size now is "
+    //           << sum_hypothetical_main_size;
     flex_item.line_number_ = flex_lines_.size();
   }
   if (line_has_in_flow_item) {
@@ -788,6 +857,11 @@ bool FlexibleBoxAlgorithm::ShouldApplyMinSizeAutoForChild(
   // webkit-box treats min-size: auto as 0.
   if (StyleRef().IsDeprecatedWebkitBox())
     return false;
+
+  if (child.IsEither()) {
+    // AMA << child.MyDebugName() << "MainAxisOverflowForChild = "
+    //               << int(MainAxisOverflowForChild(child));
+  }
 
   if (child.ShouldApplySizeContainment())
     return false;
@@ -1031,12 +1105,32 @@ ItemPosition FlexibleBoxAlgorithm::AlignmentForChild(
   return TranslateItemPosition(flexbox_style, child_style, align);
 }
 
+String FlexibleBoxAlgorithm::ItemPositionString(ItemPosition a) {
+  String labels[] = {"kLegacy",       "kAuto",
+                     "kNormal",  // 2
+                     "kStretch",
+                     "kBaseline",  // 4
+                     "kLastBaseline",
+                     "kCenter",  // 6
+                     "kStart",
+                     "kEnd",  // 8
+                     "kSelfStart",
+                     "kSelfEnd",    // 10
+                     "kFlexStart",  // 11
+                     "kFlexEnd",    // 12
+                     "kLeft",         "kRight"};
+  return UNSAFE_BUFFERS(labels[(int)a]);
+}
+
 ItemPosition FlexibleBoxAlgorithm::TranslateItemPosition(
     const ComputedStyle& flexbox_style,
     const ComputedStyle& child_style,
     ItemPosition align) {
   DCHECK_NE(align, ItemPosition::kAuto);
   DCHECK_NE(align, ItemPosition::kNormal);
+
+  //  AMA << "Top of FlexLayoutAlgorithm::TranslateItemPosition, parameter = "
+  //<< ItemPositionString(align);
 
   if (align == ItemPosition::kStart)
     return ItemPosition::kFlexStart;
@@ -1116,6 +1210,8 @@ LayoutUnit FlexibleBoxAlgorithm::InitialContentPositionOffset(
     const StyleContentAlignmentData& data,
     unsigned number_of_items,
     bool is_reversed) {
+  // AMA << "Top of InitialContentPositionOffset, available_free_space = "
+  //           << available_free_space;
   // Safe-alignment with negative free-space does nothing.
   if (available_free_space <= LayoutUnit() &&
       (style.IsDeprecatedWebkitBox() ||

@@ -422,6 +422,8 @@ const LayoutResult* BlockNode::Layout(
 
   MYLOG << "Before top layout in NGBlockNode::Layout, cache_status = "
         << (int)cache_status;
+  //  if (IsFlexibleBox())
+  //    cache_status = NGLayoutCacheStatus::kNeedsLayout;
   if (cache_status == LayoutCacheStatus::kHit) {
     DCHECK(layout_result);
     if (g_debug) {
@@ -449,7 +451,9 @@ const LayoutResult* BlockNode::Layout(
     fragment_geometry =
         CalculateInitialFragmentGeometry(constraint_space, *this, break_token);
   }
-  MYLOG << "fragment_geometry = " << (*fragment_geometry).ToString();
+  MYLOG << "In NGBlockNode::Layout, fragment_geometry to pass to "
+           "LayoutWithAlgorithm = "
+        << (*fragment_geometry).ToString();
 
   // Only consider the size of the first container fragment.
   if (!IsBreakInside(break_token) && CanMatchSizeContainerQueries()) {
@@ -825,7 +829,7 @@ void BlockNode::FinishLayout(
     return;
   }
 
-  MYLOG << "Top of NGBlockNode::FinishLayout after dodging quick aborting";
+  //  MYLOG << "Top of NGBlockNode::FinishLayout after dodging quick aborting";
 
   if (layout_result->Status() != LayoutResult::kSuccess) {
     // Layout aborted, but there may be results from a previous layout lying
@@ -936,15 +940,13 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
   std::unique_ptr<base::AutoReset<bool>> a;
   if (IsEither()) {
     MYLOG << "Top of NGBlockNode::ComputeMinMaxSize";
+    MYLOG << "\t with ConstraintSpace " << constraint_space.ToString();
     a = std::make_unique<base::AutoReset<bool>>(&g_debug, true);
   }
 
   if (g_debug) {
-    //    AMA << "Top of NGBlockNode::ComputeMinMaxSize for " << MyDebugName();
-    //    if (constraint_space)
-    //      AMA << "\t with ConstraintSpace " << constraint_space->ToString();
-    //    else
-    //      AMA << "\t with no ConstraintSpace";
+    // AMA << "Top of NGBlockNode::ComputeMinMaxSize for " << MyDebugName();
+    // AMA << "\t with ConstraintSpace " << constraint_space.ToString();
   }
 
   // TODO(layoutng) Can UpdateMarkerTextIfNeeded call be moved
@@ -1041,13 +1043,26 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
           border_padding, Style().LogicalAspectRatio(),
           Style().BoxSizingForAspectRatio(),
           fragment_geometry.border_box_size.block_size);
-      return MinMaxSizesResult({inline_size_from_ar, inline_size_from_ar},
-                               DependsOnBlockConstraints());
+      auto to_return =
+          MinMaxSizesResult({inline_size_from_ar, inline_size_from_ar},
+                            DependsOnBlockConstraints());
+      MYLOG
+          << "returning ComputeMinMaxSizes from inside the aspect ratio block: "
+          << to_return.sizes << " depends_on_block_constraints = "
+          << to_return.depends_on_block_constraints;
+      return to_return;
+    } else {
+      MYLOG << "not returning from aspect ratio because initial fragment "
+               "geometry blocksize was "
+            << fragment_geometry.border_box_size.block_size;
     }
   }
 
   bool can_use_cached_intrinsic_inline_sizes =
       CanUseCachedIntrinsicInlineSizes(constraint_space, float_input, *this);
+  MYLOG << /*(void*)box_ <<*/ " can_use_cached_intrinsic_inline_sizes = "
+        << can_use_cached_intrinsic_inline_sizes << " old sizes were "
+        << box_->intrinsic_logical_widths_;
 
   // Ensure the cache is invalid if we know we can't use our cached sizes.
   if (!can_use_cached_intrinsic_inline_sizes) {
@@ -1076,6 +1091,8 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
     result = ComputeMinMaxSizesWithAlgorithm(
         LayoutAlgorithmParams(*this, fragment_geometry, constraint_space),
         float_input);
+    // AMA << "result.depends_on_block_constraints = "
+    //<< result.depends_on_block_constraints;
 
     const BoxStrut border_padding =
         fragment_geometry.border + fragment_geometry.padding;
@@ -1117,6 +1134,9 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
       (DependsOnBlockConstraints() ||
        UseParentPercentageResolutionBlockSizeForChildren()) &&
       (result->depends_on_block_constraints || has_aspect_ratio);
+  MYLOG << "\nreturning sizes = " << result->sizes
+        << " depends_on_block_constraints = "
+        << result->depends_on_block_constraints;
   return *result;
 }
 

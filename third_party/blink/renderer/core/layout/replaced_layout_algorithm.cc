@@ -40,6 +40,9 @@ MinMaxSizesResult ReplacedLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput&) {
   NOTREACHED_IN_MIGRATION();
   return MinMaxSizesResult();
+  MYLOG << "Top of NGReplacedLayoutAlgorithm::ComputeMinMaxSizes, "
+           "ConstraintSpace is"
+        << GetConstraintSpace().ToString();
 }
 
 void ReplacedLayoutAlgorithm::LayoutMediaChildren() {
