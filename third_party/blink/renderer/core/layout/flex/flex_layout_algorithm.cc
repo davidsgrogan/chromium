@@ -342,6 +342,11 @@ LayoutUnit FlexLayoutAlgorithm::MainAxisContentExtent(
     // the term "content".
     const LayoutUnit border_scrollbar_padding =
         BorderScrollbarPadding().BlockSum();
+    MYLOG
+        << "In MainAxisContentExtent for columns, sum_hypothetical_main_size = "
+        << sum_hypothetical_main_size
+        << "border_scrollbar_padding_.BlockSum() = "
+        << border_scrollbar_padding;
     return ComputeBlockSizeForFragment(
                GetConstraintSpace(), Node(), BorderPadding(),
                sum_hypothetical_main_size.ClampNegativeToZero() +
@@ -349,6 +354,8 @@ LayoutUnit FlexLayoutAlgorithm::MainAxisContentExtent(
                container_builder_.InlineSize()) -
            border_scrollbar_padding;
   }
+  MYLOG << "MainAxisContentExtent returning "
+        << ChildAvailableSize().inline_size;
   return ChildAvailableSize().inline_size;
 }
 
@@ -450,6 +457,7 @@ AxisEdge MainAxisStaticPositionEdge(
 // Maps the resolved alignment value to a static-position edge.
 AxisEdge CrossAxisStaticPositionEdge(const ItemPosition alignment,
                                      bool is_wrap_reverse) {
+  AMA << "alignment = " << (int)alignment;
   // AlignmentForChild already accounted for wrap-reverse for kFlexStart and
   // kFlexEnd, but not kStretch. kStretch is supposed to act like kFlexStart.
   if (is_wrap_reverse && alignment == ItemPosition::kStretch) {
@@ -686,6 +694,10 @@ const ConstraintSpace FlexLayoutAlgorithm::BuildSpaceForLayout(
     std::optional<LayoutUnit> line_cross_size,
     std::optional<LayoutUnit> block_offset_for_fragmentation,
     bool min_block_size_should_encompass_intrinsic_size) const {
+  MYLOG << "Top of BuildSpaceForLayout, is_initial_block_size_indefinite = "
+        << is_initial_block_size_indefinite << "\n\tline_cross_size = "
+        << (line_cross_size.has_value() ? *line_cross_size : kIndefiniteSize);
+
   ConstraintSpaceBuilder builder(GetConstraintSpace(),
                                  node.Style().GetWritingDirection(),
                                  /* is_new_fc */ true);
@@ -697,6 +709,7 @@ const ConstraintSpace FlexLayoutAlgorithm::BuildSpaceForLayout(
     builder.SetCacheSlot(LayoutResultCacheSlot::kMeasure);
   }
 
+  MYLOG << "child_available_size = " << ChildAvailableSize();
   LogicalSize available_size = ChildAvailableSize();
   LogicalSize percentage_size = child_percentage_size_;
 
@@ -726,6 +739,9 @@ const ConstraintSpace FlexLayoutAlgorithm::BuildSpaceForLayout(
              "stretching during the intrinsic width calculation.";
       available_size.inline_size = *override_inline_size;
       builder.SetIsFixedInlineSize(true);
+      MYLOG << "In BuildSpaceForIntrinsicBlockSize, setting available size to "
+               "the max contribution size of "
+            << available_size.inline_size;
     } else if (line_cross_size) {
       available_size.inline_size = *line_cross_size;
     }
@@ -759,6 +775,8 @@ const ConstraintSpace FlexLayoutAlgorithm::BuildSpaceForLayout(
   if (is_initial_block_size_indefinite) {
     DCHECK(is_column_);
     builder.SetIsInitialBlockSizeIndefinite(true);
+    MYLOG << "Setting IsFixedBlockSizeIndefinite(true) when building "
+             "ConstraintSpace for IntrinsicBlockSize";
 
     // When measuring for column layout set our extrinsic constraints to
     // indefinite.
@@ -857,7 +875,16 @@ void FlexLayoutAlgorithm::ConstructAndAppendFlexItems(
       // We want the child's intrinsic inline sizes in its writing mode, so
       // pass child's writing mode as the first parameter, which is nominally
       // |container_writing_mode|.
-      return child.ComputeMinMaxSizes(child_writing_mode, type, child_space);
+      MYLOG << "About to call child.ComputeMinMaxSizes from MinMaxSizesFunc "
+               "on child "
+            << child.MyDebugName()
+            << " with child_space = " << child_space.ToString();
+      MinMaxSizesResult a =
+          child.ComputeMinMaxSizes(child_writing_mode, type, child_space);
+      AMA << "intrinsic sizes border box of child " << child.MyDebugName()
+          << " = " << a.sizes << " depends_on_block_constraints = "
+          << a.depends_on_block_constraints;
+      return a;
     };
 
     auto InlineSizeFunc = [&]() -> LayoutUnit {
@@ -901,7 +928,13 @@ void FlexLayoutAlgorithm::ConstructAndAppendFlexItems(
           if (phase != Phase::kLayout && !child.GetLayoutBox()->NeedsLayout()) {
             disable_side_effects.emplace();
           }
+          AMA << "About to lay out item " << child.MyDebugName()
+              << " to get intrinsic block size with constraint space "
+              << child_space.ToString();
           layout_result = child.Layout(child_space);
+          AMA << "Just laid out item " << child.MyDebugName()
+              << " to get intrinsic block size, physical size is "
+              << layout_result->GetPhysicalFragment().Size();
           DCHECK(layout_result);
         }
         intrinsic_size = layout_result->IntrinsicBlockSize();
@@ -1083,7 +1116,11 @@ void FlexLayoutAlgorithm::ConstructAndAppendFlexItems(
     DCHECK_GE(min_max_sizes_in_main_axis_direction.min_size, LayoutUnit());
     DCHECK_GE(min_max_sizes_in_main_axis_direction.max_size, LayoutUnit());
 
+    AMA << "min_max_sizes_in_main_axis_direction without border/padding = "
+        << min_max_sizes_in_main_axis_direction;
+
     const BoxStrut initial_scrollbars = ComputeScrollbarsForNonAnonymous(child);
+
 
     auto AspectRatioProvidesBlockMainSize = [&]() -> bool {
       if (is_main_axis_inline_axis) {
@@ -1121,7 +1158,12 @@ void FlexLayoutAlgorithm::ConstructAndAppendFlexItems(
         /* is_parallel_context */ !is_column_,
         /* is_last_baseline */ alignment == ItemPosition::kLastBaseline,
         /* is_flipped */ is_wrap_reverse_);
-
+    AMA << "About to give the Algorithm the item for " << child.MyDebugName()
+        << "\n\t base_content_size = " << base_content_size
+        << "\n\t is_used_flex_basis_indefinite = "
+        << is_used_flex_basis_indefinite
+        << "\n\t min_max_sizes_in_main_axis_direction = "
+        << min_max_sizes_in_main_axis_direction;
     flex_items_.emplace_back(
         child, item_index++, flex_grow, flex_shrink, base_content_size,
         min_max_sizes_in_main_axis_direction, main_axis_border_padding,
@@ -1165,6 +1207,9 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
     freeze_scrollbars.emplace();
 
   PaintLayerScrollableArea::DelayScrollOffsetClampScope delay_clamp_scope;
+  AMA << "";
+  AMA << "Got to top of NGFlexLayoutAlgorithm::Layout for " << MyDebugName()
+      << " constraint space = " << GetConstraintSpace().ToString();
 
   Vector<EBreakBetween> row_break_between_outputs;
   FlexLineVector flex_lines;
@@ -1422,8 +1467,13 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
         if (phase != Phase::kLayout && !node.GetLayoutBox()->NeedsLayout()) {
           disable_side_effects.emplace();
         }
+        AMA << "Laying out " << node.MyDebugName()
+            << " in pass 2 (cross_axis_size [new]) with constraints "
+            << space.ToString();
         layout_result = node.Layout(space);
         const PhysicalSize size = layout_result->GetPhysicalFragment().Size();
+        AMA << "Just laid out " << flex_item.block_node.MyDebugName()
+            << " and got size " << size;
         return is_horizontal_flow_ ? size.height : size.width;
       })();
 
@@ -1460,6 +1510,7 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
       line_cross_size = std::max(line_cross_size, cross_axis_margin_size);
     }
 
+    AMA << line_cross_size << " <- line_cross_size";
     // Ensure that we use the definite line cross-line if available.
     line_cross_size = definite_line_cross_size.value_or(line_cross_size);
 
@@ -1719,7 +1770,13 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
           item.is_initial_block_size_indefinite,
           /* override_inline_size */ std::nullopt, item.FlexedBorderBoxSize(),
           flex_line.line_cross_size);
+                  AMA << "Laying out " << item.block_node.MyDebugName()
+                              << " for pass 3 with constraints " << child_space.ToString();
       const LayoutResult* layout_result = item.block_node.Layout(child_space);
+
+          AMA << "Laying out " << item.block_node.MyDebugName()
+              << " for stretchability with constraints "
+              << child_space.ToString();
 
       const auto& item_style = item.block_node.Style();
 
@@ -1994,6 +2051,9 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
     bool is_first_line = flex_line_idx == 0;
     bool is_last_line = flex_line_idx == flex_lines->size() - 1;
 
+    AMA << "In GiveItemsFinalPositionAndSizeForFragmentation, looking at "
+        << flex_item->block_node.GetLayoutBox()->DebugName();
+
     // A child break in a parallel flow doesn't affect whether we should
     // break here or not. But if the break happened in the same flow, we'll now
     // just finish layout of the fragment. No more siblings should be processed.
@@ -2182,6 +2242,7 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
 
     const bool min_block_size_should_encompass_intrinsic_size =
         MinBlockSizeShouldEncompassIntrinsicSize(*flex_item);
+      MYLOG << "About to call BuildSpaceForLayout from deep stuff";
     const ConstraintSpace child_space = BuildSpaceForLayout(
         flex_item->block_node, flex_item->alignment,
         flex_item->is_initial_block_size_indefinite,
@@ -2287,8 +2348,9 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
         // Keep track of the early breaks for each column.
         AddColumnEarlyBreak(current_column_break_info->early_break,
                             flex_line_idx);
-        if (!last_item_in_line)
+        if (!last_item_in_line) {
           item_iterator.NextLine();
+        }
         continue;
       }
       status = LayoutResult::kNeedsEarlierBreak;
@@ -2415,7 +2477,7 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
         }
       }
     }
-
+    AMA << "Adding child at " << offset;
     if (current_column_break_info) {
       DCHECK(is_column_);
       current_column_break_info->column_intrinsic_block_size =
@@ -2653,6 +2715,10 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
         BuildSpaceForIntrinsicInlineSize(child, item.alignment);
     const MinMaxSizesResult min_max_content_contributions =
         ComputeMinAndMaxContentContribution(Style(), child, space);
+    MYLOG << "for " << child.MyDebugName()
+          << " child_min_max_sizes = " << min_max_content_contributions.sizes
+          << " depends_on_block_constraints = "
+          << min_max_content_contributions.depends_on_block_constraints;
     depends_on_block_constraints |=
         min_max_content_contributions.depends_on_block_constraints;
 
@@ -2662,11 +2728,13 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
     const LayoutUnit hypothetical_main_size_border_box =
         item.hypothetical_content_size + item.main_axis_border_padding;
 
+
     const LayoutUnit main_axis_margins =
         is_horizontal_flow_ ? item.initial_margins.HorizontalSum()
                             : item.initial_margins.VerticalSum();
 
     if (is_multi_line_) {
+      MYLOG << "algorithm_.IsMultiline()";
       largest_outer_min_content_contribution = std::max(
           largest_outer_min_content_contribution,
           min_max_content_contributions.sizes.min_size + main_axis_margins);
@@ -2695,6 +2763,7 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
         item_final_contribution.min_size = hypothetical_main_size_border_box;
       } else {
         item_final_contribution.min_size = min_contribution;
+        MYLOG << item_final_contribution << " <- item_final_contribution";
       }
     }
 
@@ -2709,6 +2778,27 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
     } else {
       item_final_contribution.max_size = max_contribution;
     }
+
+    /*
+          AMA << "starting to update MIN-content for this item";
+        AMA << "starting to update max-content for this item";
+      AMA << "chosen min_content_largest_fraction = "
+          << min_content_largest_fraction.chosen_flex_fraction_;
+      AMA << "chosen max_content_largest_fraction = "
+          << max_content_largest_fraction.chosen_flex_fraction_;
+
+        base::AutoReset<int> depth(&g_depth, g_depth + 1);
+        AMA << "In second pass, looking at item "
+            << item.ng_input_node_.MyDebugName();
+            AMA << "cant_move = " << cant_move;
+            AMA << item_final_contribution.min_size << " <- result of
+      application"; AMA << "For item " << item.ng_input_node_.MyDebugName()
+            << " item_final_contribution.min_size before applying min/max = "
+            << item_final_contribution.min_size;
+        AMA << "For item " << item.ng_input_node_.MyDebugName()
+            << " item_final_contribution.min_size after applying min/max = "
+            << item_final_contribution.min_size;
+            */
 
     container_sizes += item_final_contribution;
     container_sizes += main_axis_margins;
@@ -2742,22 +2832,32 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
   container_sizes.Encompass(LayoutUnit());
 
   container_sizes += BorderScrollbarPadding().InlineSum();
+  AMA << "ComputeMinMaxSizeOfSingleLineRowContainer returning "
+         "container_sizes = "
+      << container_sizes
+      << " depends_on_block_constraints = " << depends_on_block_constraints;
   return MinMaxSizesResult(container_sizes, depends_on_block_constraints);
 }
 
 MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput&) {
+  MYLOG << "Top of NGFlexLayoutAlgorithm::ComputeMinMaxSize";
   if (auto result = CalculateMinMaxSizesIgnoringChildren(
-          Node(), BorderScrollbarPadding()))
+          Node(), BorderScrollbarPadding())) {
     return *result;
+  }
 
   if (is_column_ && is_multi_line_) {
+    AMA << "got into LayoutFlexNewColumnAlgorithmEnabled for " << MyDebugName();
     return ComputeMinMaxSizeOfMultilineColumnContainer();
   }
 
   if (RuntimeEnabledFeatures::LayoutFlexNewRowAlgorithmEnabled() &&
       !is_column_) {
-    return ComputeMinMaxSizeOfRowContainer();
+    AMA << "got into V3 for " << MyDebugName();
+    auto dogs = ComputeMinMaxSizeOfRowContainer();
+    AMA << "v3 returning " << dogs.sizes << " for " << MyDebugName();
+    return dogs;
   }
 
   MinMaxSizes sizes;
@@ -2777,6 +2877,11 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizes(
         ComputeMinAndMaxContentContribution(Style(), child, space);
     BoxStrut child_margins =
         ComputeMarginsFor(space, child.Style(), GetConstraintSpace());
+    MYLOG << "for " << child.MyDebugName()
+          << " child_min_max_sizes = " << child_result.sizes
+          << " and child_margins = " << child_margins
+          << " depends_on_block_constraints = "
+          << child_result.depends_on_block_constraints;
     child_result.sizes += child_margins.InlineSum();
 
     depends_on_block_constraints |= child_result.depends_on_block_constraints;
@@ -2805,6 +2910,7 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizes(
   // intrinsic width. Make sure that we never return a negative width.
   sizes.Encompass(LayoutUnit());
   sizes += BorderScrollbarPadding().InlineSum();
+  AMA << "generic returning " << sizes << " for " << MyDebugName();
   return MinMaxSizesResult(sizes, depends_on_block_constraints);
 }
 
