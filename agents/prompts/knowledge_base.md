@@ -80,13 +80,6 @@ orient yourself before diving into specific component code.
 *   **For best practices and style in `BUILD.gn` files:**
     *   Consult `docs/imported/gn/style_guide.md`.
 
-### **Topic: Adding a New UKM Metric**
-
-*   **For questions about UKM metrics (e.g., mentioning 'UKM', 'ukm.h', or
-    'UkmRecorder'):**
-    *   Consult `tools/metrics/ukm/README.md` for instructions on how to
-        define and record new URL-Keyed Metrics.
-
 ### **Topic: Debugging**
 
 *   **For a "header file not found" error:**
