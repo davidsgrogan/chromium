@@ -146,7 +146,17 @@ const ComputedStyle* StyleResolverState::CloneStyle() const {
   return style_builder_->CloneStyle();
 }
 
+// This is a per-element object.
 void StyleResolverState::UpdateLengthConversionData() {
+  // If we are the root element with a fixed scrollbar, we could omit the
+  // scrollbar width here from the viewport size we pass to
+  // CSSToLengthConversionData. That unfortunately wouldn't work reliably
+  // because this is sometimes called BEFORE the viewport knows the size of its
+  // scrollbars. Currently, LayoutFrameView learns its scrollbar size after
+  // the entire tree's styles are calculated.
+  // const bool is_root = GetElement() == GetDocument().documentElement();
+  // const bool exclude_scrollbars =
+  //     is_root && StyleBuilder().OverflowX() == EOverflow::kScroll;
   css_to_length_conversion_data_ = CSSToLengthConversionData(
       *style_builder_, ParentStyle(), RootElementStyle(),
       GetDocument().GetStyleEngine().GetViewportSize(),

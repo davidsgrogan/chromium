@@ -4057,6 +4057,7 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
       TRACE_EVENT0("blink,blink_style", "Document::recalcStyle");
       SCOPED_BLINK_UMA_HISTOGRAM_TIMER_HIGHRES("Style.RecalcTime");
       Element* viewport_defining = GetDocument().ViewportDefiningElement();
+      // This is where state_.UpdateLengthConversionData is called:
       RecalcStyle();
       if (viewport_defining != GetDocument().ViewportDefiningElement()) {
         ViewportDefiningElementDidChange();
@@ -4078,6 +4079,18 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
     style_recalc_root_.Clear();
   }
   UpdateColorSchemeBackground();
+  // This is where LayoutView learns that the viewport has scrollbars, via
+  // StyleResolver::PropagateStyleToViewport () at style_resolver.cc:3576
+  // LayoutObject::SetStyle () at layout_object.cc:2822
+  // LayoutView::StyleDidChange () at layout_view.cc:930
+  // LayoutBlockFlow::StyleDidChange () at layout_block_flow_hot.cc:65
+  // LayoutBlock::StyleDidChange () at layout_block.cc:148
+  // LayoutBox::StyleDidChange () at layout_box.cc:640
+  // LayoutBoxModelObject::StyleDidChange () at layout_box_model_object.cc:269
+  // PaintLayer::StyleDidChange () at paint_layer.cc:2256
+  // PaintLayerScrollableArea::UpdateAfterStyleChange () at
+  //      paint_layer_scrollable_area.cc:1416
+  // PaintLayerScrollableArea::ComputeScrollbarExistence
   GetStyleResolver().PropagateStyleToViewport();
 }
 
@@ -4761,7 +4774,41 @@ void StyleEngine::BaseURLChanged() {
   fill_or_clip_path_uri_value_cache_.clear();
 }
 
+// This is a per-document object.
+// Callers:
+// First, weird
+//   WebLocalFrameImpl::InitializeCoreFrame () at web_local_frame_impl.cc:2346
+// Second
+//   DocumentLoader::CommitNavigation () at document_loader.cc:2927
+//   LocalDOMWindow::InstallNewDocument () at local_dom_window.cc:884
+//   DocumentInit::CreateDocument () at document_init.cc:316
+// Third -- top of StyleEngine::UpdateStyleAndLayoutTree, before RecalcStyle
+//   HTMLConstructionSite::FinishedParsing () at html_construction_site.cc:782
+//   Document::FinishedParsing () at document.cc:7977
+//   Document::UpdateStyleAndLayoutTree () at document.cc:2593
+//   Document::UpdateStyleAndLayoutTree () at document.cc:2618
+//   Document::UpdateStyleAndLayoutTreeForThisDocument () at document.cc:2759
+//   Document::UpdateStyle () at document.cc:2821
+//   StyleEngine::UpdateStyleAndLayoutTree () at style_engine.cc:4077
+//   StyleEngine::UpdateViewportSize () at style_engine.cc:4747
+// Fourth -- weird PseudoElement SetSpellingError thing
+//   StyleEngine::RecalcStyle () at style_engine.cc:3915
+//   Element::RecalcStyle () at element.cc:4605
+//   Element::RecalcOwnStyle () at element.cc:5008
+//   Element::RecalcHighlightStyles () at element.cc:6362
+//   Element::StyleForHighlightPseudoElement () at element.cc:9905
+//   Element::StyleForPseudoElement () at element.cc:9807
+// Fifth -- weird PseudoElement SetGrammarError thing
+//   ...
+//   Element::RecalcHighlightStyles () at element.cc:6374
+//   ...
 void StyleEngine::UpdateViewportSize() {
+  // This is the only caller of CSSToLengthConversionData::ViewportSize.
+  // Possible variant: store _a pair_ of
+  // CSSToLengthConversionData::ViewportSize objects. One would include
+  // scrollbars, the other would exclude. Make
+  // StyleResolverState::UpdateLengthConversionData or something pick
+  // which one to use.
   viewport_size_ =
       CSSToLengthConversionData::ViewportSize(GetDocument().GetLayoutView());
 }

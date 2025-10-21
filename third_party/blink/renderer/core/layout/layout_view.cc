@@ -585,9 +585,12 @@ void LayoutView::SetAutosizeScrollbarModes(mojom::blink::ScrollbarMode h_mode,
   autosize_h_scrollbar_mode_ = h_mode;
 }
 
-void LayoutView::CalculateScrollbarModes(
-    mojom::blink::ScrollbarMode& h_mode,
-    mojom::blink::ScrollbarMode& v_mode) const {
+void LayoutView::CalculateScrollbarModes(mojom::blink::ScrollbarMode& h_mode,
+                                         mojom::blink::ScrollbarMode& v_mode,
+                                         EOverflow overflow_x,
+                                         EOverflow overflow_y,
+                                         bool new_caller) const {
+  // This function has much of the logic I want to obey.
   NOT_DESTROYED();
 #define RETURN_SCROLLBAR_MODE(mode) \
   {                                 \
@@ -601,11 +604,13 @@ void LayoutView::CalculateScrollbarModes(
       AutosizeHorizontalScrollbarMode() != mojom::blink::ScrollbarMode::kAuto) {
     h_mode = AutosizeHorizontalScrollbarMode();
     v_mode = AutosizeVerticalScrollbarMode();
+    LOG(ERROR) << "Bailing here";
     return;
   }
 
   LocalFrame* frame = GetFrame();
   if (!frame) {
+    LOG(ERROR) << "Bailing here";
     RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
   }
 
@@ -629,6 +634,7 @@ void LayoutView::CalculateScrollbarModes(
     }
 #endif
     if (disable_scrollbars) {
+      LOG(ERROR) << "Bailing here";
       RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
     }
   }
@@ -636,6 +642,7 @@ void LayoutView::CalculateScrollbarModes(
   if (FrameOwner* owner = frame->Owner()) {
     // Setting scrolling="no" on an iframe element disables scrolling.
     if (owner->ScrollbarMode() == mojom::blink::ScrollbarMode::kAlwaysOff) {
+      LOG(ERROR) << "Bailing here";
       RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
     }
   }
@@ -644,6 +651,7 @@ void LayoutView::CalculateScrollbarModes(
   if (Node* body = document.body()) {
     // Framesets can't scroll.
     if (body->GetLayoutObject() && body->GetLayoutObject()->IsFrameSet()) {
+      LOG(ERROR) << "Bailing here";
       RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
     }
   }
@@ -651,39 +659,52 @@ void LayoutView::CalculateScrollbarModes(
   if (LocalFrameView* frameView = GetFrameView()) {
     // Scrollbars can be disabled by LocalFrameView::setCanHaveScrollbars.
     if (!frameView->CanHaveScrollbars()) {
+      LOG(ERROR) << "Bailing here";
       RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
     }
   }
 
-  Element* viewport_defining_element = document.ViewportDefiningElement();
-  if (!viewport_defining_element)
-    RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
+  // document.ViewportDefiningElement returns nullptr when
+  // document.GetComputedStyle() is null. So if we try to call this method
+  // before the root element has a style, e.g. where my commented changes are in
+  // style_cascade.cc, it will always return kAuto here.
+  if (!new_caller) {
+    LOG(ERROR) << "Got into !new_caller";
+    Element* viewport_defining_element = document.ViewportDefiningElement();
 
-  LayoutObject* viewport = viewport_defining_element->GetLayoutObject();
-  if (!viewport)
-    RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
-
-  const ComputedStyle* style = viewport->Style();
-  if (!style)
-    RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
-
-  if (viewport->IsSVGRoot()) {
-    // Don't allow overflow to affect <img> and css backgrounds
-    if (To<LayoutSVGRoot>(viewport)->IsEmbeddedThroughSVGImage())
+    if (!viewport_defining_element) {
+      LOG(ERROR) << "Bailing here";
       RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
-
-    // FIXME: evaluate if we can allow overflow for these cases too.
-    // Overflow is always hidden when stand-alone SVG documents are embedded.
-    if (To<LayoutSVGRoot>(viewport)
-            ->IsEmbeddedThroughFrameContainingSVGDocument()) {
-      RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
     }
+
+    LayoutObject* viewport = viewport_defining_element->GetLayoutObject();
+    if (!viewport) {
+      RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
+    }
+
+    const ComputedStyle* style = viewport->Style();
+    if (!style) {
+      RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
+    }
+
+    if (viewport->IsSVGRoot()) {
+      // Don't allow overflow to affect <img> and css backgrounds
+      if (To<LayoutSVGRoot>(viewport)->IsEmbeddedThroughSVGImage()) {
+        RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAuto);
+      }
+
+      // FIXME: evaluate if we can allow overflow for these cases too.
+      // Overflow is always hidden when stand-alone SVG documents are embedded.
+      if (To<LayoutSVGRoot>(viewport)
+              ->IsEmbeddedThroughFrameContainingSVGDocument()) {
+        RETURN_SCROLLBAR_MODE(mojom::blink::ScrollbarMode::kAlwaysOff);
+      }
+    }
+    overflow_x = style->OverflowX();
+    overflow_y = style->OverflowY();
   }
 
   h_mode = v_mode = mojom::blink::ScrollbarMode::kAuto;
-
-  EOverflow overflow_x = style->OverflowX();
-  EOverflow overflow_y = style->OverflowY();
 
   bool should_ignore_overflow_hidden = false;
   if (Settings* settings = document.GetSettings()) {
@@ -698,8 +719,10 @@ void LayoutView::CalculateScrollbarModes(
       v_mode = mojom::blink::ScrollbarMode::kAlwaysOff;
   }
 
-  if (overflow_x == EOverflow::kScroll)
+  if (overflow_x == EOverflow::kScroll) {
+    LOG(ERROR) << "Turning on h_mode here";
     h_mode = mojom::blink::ScrollbarMode::kAlwaysOn;
+  }
   if (overflow_y == EOverflow::kScroll)
     v_mode = mojom::blink::ScrollbarMode::kAlwaysOn;
 
@@ -852,20 +875,43 @@ bool LayoutView::BackgroundIsKnownToBeOpaqueInRect(const PhysicalRect&) const {
 
 gfx::SizeF LayoutView::SmallViewportSizeForViewportUnits() const {
   NOT_DESTROYED();
-  return GetFrameView() ? GetFrameView()->SmallViewportSizeForViewportUnits()
-                        : gfx::SizeF();
+  // These changes are in support of Approach 3, which was mostly a
+  // proof-of-concept.
+  if (!GetFrameView()) {
+    return gfx::SizeF();
+  }
+  gfx::SizeF full_size = GetFrameView()->SmallViewportSizeForViewportUnits();
+  gfx::SizeF scrollbars_removed =
+      full_size -
+      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+  scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
+  return scrollbars_removed;
 }
 
 gfx::SizeF LayoutView::LargeViewportSizeForViewportUnits() const {
   NOT_DESTROYED();
-  return GetFrameView() ? GetFrameView()->LargeViewportSizeForViewportUnits()
-                        : gfx::SizeF();
+  if (!GetFrameView()) {
+    return gfx::SizeF();
+  }
+  gfx::SizeF full_size = GetFrameView()->LargeViewportSizeForViewportUnits();
+  gfx::SizeF scrollbars_removed =
+      full_size -
+      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+  scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
+  return scrollbars_removed;
 }
 
 gfx::SizeF LayoutView::DynamicViewportSizeForViewportUnits() const {
   NOT_DESTROYED();
-  return GetFrameView() ? GetFrameView()->DynamicViewportSizeForViewportUnits()
-                        : gfx::SizeF();
+  if (!GetFrameView()) {
+    return gfx::SizeF();
+  }
+  gfx::SizeF full_size = GetFrameView()->DynamicViewportSizeForViewportUnits();
+  gfx::SizeF scrollbars_removed =
+      full_size -
+      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+  scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
+  return scrollbars_removed;
 }
 
 gfx::SizeF LayoutView::PaginationViewportSizeForMediaQueries() const {

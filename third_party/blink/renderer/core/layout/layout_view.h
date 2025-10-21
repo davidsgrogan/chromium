@@ -179,7 +179,10 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
   }
 
   void CalculateScrollbarModes(mojom::blink::ScrollbarMode& h_mode,
-                               mojom::blink::ScrollbarMode& v_mode) const;
+                               mojom::blink::ScrollbarMode& v_mode,
+                               EOverflow overflow_x = EOverflow::kAuto,
+                               EOverflow overflow_y = EOverflow::kAuto,
+                               bool new_caller = false) const;
 
   bool CanHaveAdditionalCompositingReasons() const override {
     NOT_DESTROYED();
@@ -419,6 +422,12 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
   std::optional<CachedScrollDimensions> cached_scroll_dimensions_;
 
   mutable PhysicalRect previous_background_rect_;
+
+ public:
+  // These fields are in support of Approach 3, but storing them here is
+  // obviously not a good long-term solution.
+  int vertical_scrollbar_width = 0;
+  int horizontal_scrollbar_height = 0;
 };
 
 template <>

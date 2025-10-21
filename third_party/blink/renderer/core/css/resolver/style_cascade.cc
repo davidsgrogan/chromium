@@ -67,6 +67,7 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -300,6 +301,59 @@ void StyleCascade::Apply(CascadeFilter filter) {
 
   ApplyCascadeAffecting(resolver);
 
+  // Approach 1: Make viewport units respect scrollbars even for properties on
+  // the root element.
+  //
+  // Issue: PaintLayerScrollableArea::UpdateAfterStyleChange,
+  // PaintLayerScrollableArea::ComputeScrollbarExistence, and
+  // LayoutView::CalculateScrollbarModes have _a lot_ of logic about the
+  // existence of scrollbars that goes way beyond the primitive check for
+  // state_.StyleBuilder().OverflowX() == EOverflow::kScroll here. But that
+  // logic is only called after RecalcStyle has completed and the Layout tree
+  // has been constructed (see this CL's code comment with stack trace in
+  // style_engine.cc). The above mentioned logic has many dependencies on a
+  // ComputedStyle object, which obviously does not exist yet.
+
+  if (IsRootElement()) {
+    if (map_.NativeBitset().Has(CSSPropertyID::kOverflowX)) {
+      LookupAndApply(GetCSSPropertyOverflowX(), resolver);
+    }
+    if (map_.NativeBitset().Has(CSSPropertyID::kOverflowY)) {
+      LookupAndApply(GetCSSPropertyOverflowY(), resolver);
+    }
+    LookupAndApply(GetCSSPropertyScrollbarGutter(), resolver);
+    LookupAndApply(GetCSSPropertyScrollbarWidth(), resolver);
+    // document.ViewportDefiningElement() wants to also check
+    // root_style->IsEnsuredInDisplayNone(), which is triggered by
+    // third_party/blink/web_tests/fast/css/rem-display-none-crash.html at
+    // https://chromium-layout-test-archives.storage.googleapis.com/results.html?json=chromium/try/linux-rel/2413209/blink_web_tests%20%28with%20patch%29/full_results_jsonp.js
+    PaintLayerScrollableArea::StyleBasedScrollbarData dogs{
+        state_.StyleBuilder().OverflowX(), state_.StyleBuilder().OverflowY(),
+        state_.StyleBuilder().ScrollbarGutter(),
+        state_.StyleBuilder().ScrollbarWidth()};
+
+    LayoutView* view = state_.GetDocument().GetLayoutView();
+    DCHECK(view);
+    PhysicalSize to_subtract =
+        view->GetScrollableArea()->ComputeScrollbarExistence2(dogs);
+    LOG(ERROR) << "Setting view->vertical_scrollbar_width = "
+               << to_subtract.width.ToInt();
+    view->vertical_scrollbar_width = to_subtract.width.ToInt();
+    view->horizontal_scrollbar_height = to_subtract.height.ToInt();
+    GetDocument().GetStyleEngine().UpdateViewportSize();
+    state_.UpdateLengthConversionData();
+  }
+  // if (state_.StyleBuilder().OverflowX() == EOverflow::kScroll) {
+  //    TODO: This conditional is insufficient. We also need to (1) check if
+  //    scrollbars will _actually_ be present a la
+  //    PaintLayerScrollableArea::UpdateAfterStyleChange and
+  //    LayoutView::CalculateScrollbarModes; and (2) Determine the
+  //    scrollbars' size, including how to handle custom
+  //    ::-webkit-scrollbar scrollbars, and what to do in case of a cycle like
+  //    html::-webkit-scrollbar { width: 20vw; }
+
+  //    state_.UpdateLengthConversionDataForScrollbars(); // Or something.
+  //  }
   ApplyHighPriority(resolver);
   state_.UpdateFont();
 

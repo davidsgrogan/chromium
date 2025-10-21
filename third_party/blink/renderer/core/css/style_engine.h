@@ -766,6 +766,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // See comment on viewport_size_.
   void UpdateViewportSize();
   const CSSToLengthConversionData::ViewportSize& GetViewportSize() const {
+    // viewport_size_ gets calculated in StyleEngine::UpdateViewportSize.
     DCHECK_EQ(viewport_size_, CSSToLengthConversionData::ViewportSize(
                                   GetDocument().GetLayoutView()));
     return viewport_size_;

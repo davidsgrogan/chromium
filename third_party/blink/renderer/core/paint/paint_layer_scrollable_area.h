@@ -719,6 +719,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
   int HorizontalScrollbarStart() const;
   gfx::Vector2d ScrollbarOffset(const Scrollbar&) const;
 
+ public:
   // If OverflowIndependent is specified, will only change current scrollbar
   // existence if the new style doesn't depend on overflow which requires
   // layout to be clean. It'd be nice if we could always determine existence at
@@ -734,7 +735,15 @@ class CORE_EXPORT PaintLayerScrollableArea final
       bool& needs_horizontal_scrollbar,
       bool& needs_vertical_scrollbar,
       ComputeScrollbarExistenceOption = kDependsOnOverflow) const;
+  struct StyleBasedScrollbarData {
+    EOverflow OverflowX;
+    EOverflow OverflowY;
+    unsigned gutter;
+    EScrollbarWidth width;
+  };
+  PhysicalSize ComputeScrollbarExistence2(StyleBasedScrollbarData) const;
 
+ private:
   // If the content fits entirely in the area without auto scrollbars, returns
   // true to try to remove them. This is a heuristic and can be incorrect if the
   // content size depends on the scrollbar size (e.g., percentage sizing).

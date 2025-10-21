@@ -1257,6 +1257,7 @@ void PaintLayerScrollableArea::ClampScrollOffsetAfterOverflowChangeInternal() {
 }
 
 void PaintLayerScrollableArea::DidChangeGlobalRootScroller() {
+  // Do I need to do anything here? Who calls this method?
   // Being the global root scroller will affect clipping size due to browser
   // controls behavior so we need to update compositing based on updated clip
   // geometry.
@@ -1419,6 +1420,12 @@ bool PaintLayerScrollableArea::CanPropagateScroll() const {
 // This function returns true if the given box requires overflow scrollbars (as
 // opposed to the viewport scrollbars managed by VisualViewport).
 static bool CanHaveOverflowScrollbars(const LayoutBox& box) {
+  // Shouldn't these be equal for my root element??
+  // This function is returning true, which I do not understand.
+  // It returnns true because ViewportDefiningElement() returns nullptr because
+  // there documentElement.GetComputedStyle() returns null. But box.GetNode() is
+  // NOT null, so these are not equal, so we say yes to
+  // CanHaveOverflowScrollbars.
   return box.GetDocument().ViewportDefiningElement() != box.GetNode();
 }
 
@@ -1429,6 +1436,11 @@ void PaintLayerScrollableArea::UpdateAfterStyleChange(
     UpdateScrollableAreaSet();
 
   UpdateResizerStyle(old_style);
+
+  // Seems like a losing game to not run the next ~35 lines of scrollbar logic,
+  // especially ComputeScrollbarExistence. But also doesn't seem great to
+  // duplicate the majority of it into StyleCascade::Apply, and refactor it to
+  // not need an explicit ComputedStyle object.
 
   // The scrollbar overlay color theme depends on styles such as the background
   // color and the used color scheme.
@@ -1567,8 +1579,8 @@ static inline const LayoutObject& ScrollbarStyleSource(
   if (IsA<LayoutView>(layout_box)) {
     Document& doc = layout_box.GetDocument();
 
-    // If the layout box uses standard scrollbar styles use it as the style
-    // source.
+    // If the layout box uses standardized scrollbar properties use it as the
+    // style source.
     if (layout_box.StyleRef().UsesStandardScrollbarStyle()) {
       return layout_box;
     }
@@ -1608,7 +1620,14 @@ static inline const LayoutObject& ScrollbarStyleSource(
   } else if (!layout_box.GetNode() && layout_box.Parent()) {
     return *layout_box.Parent();
   }
-
+  // Returns LayoutView in the old code, which is from
+  // StyleEngine::UpdateStyleAndLayoutTree () at style_engine.cc:4094
+  // StyleResolver::PropagateStyleToViewport
+  // ... which is AFTER layout tree is built
+  // Will need to see what it's like for my new code when this is called BEFORE
+  // layout tree is built.
+  // Called from PaintLayerScrollableArea::ScrollbarManager::CreateScrollbar in
+  // old code.
   return layout_box;
 }
 
@@ -1706,12 +1725,92 @@ bool PaintLayerScrollableArea::NeedsScrollbarReconstruction() const {
   return false;
 }
 
+PhysicalSize PaintLayerScrollableArea::ComputeScrollbarExistence2(
+    StyleBasedScrollbarData my_scrollbar_properties_struct) const {
+  // Scrollbars may be hidden or provided by visual viewport or frame instead.
+  DCHECK(GetLayoutBox()->GetFrame()->GetSettings());
+  LOG(ERROR) << VisualViewportSuppliesScrollbars();
+  LOG(ERROR) << CanHaveOverflowScrollbars(*GetLayoutBox());
+  LOG(ERROR) << GetLayoutBox()->GetFrame()->GetSettings()->GetHideScrollbars();
+  LOG(ERROR) << GetLayoutBox()->IsFieldset();
+  LOG(ERROR) << GetLayoutBox()->IsFrameSet();
+  LOG(ERROR) << GetLayoutBox()->StyleRef().UsedScrollbarWidth();
+  if (VisualViewportSuppliesScrollbars() ||
+      !CanHaveOverflowScrollbars(*GetLayoutBox()) ||
+      GetLayoutBox()->GetFrame()->GetSettings()->GetHideScrollbars() ||
+      GetLayoutBox()->IsFieldset() || GetLayoutBox()->IsFrameSet() ||
+      GetLayoutBox()->StyleRef().UsedScrollbarWidth() ==
+          EScrollbarWidth::kNone) {
+    // needs_horizontal_scrollbar = false;
+    // needs_vertical_scrollbar = false;
+    LOG(ERROR) << "Bailing at first";
+    return PhysicalSize();
+  }
+
+  auto* layout_view = To<LayoutView>(GetLayoutBox());
+  mojom::blink::ScrollbarMode h_mode = mojom::blink::ScrollbarMode::kAuto;
+  mojom::blink::ScrollbarMode v_mode = mojom::blink::ScrollbarMode::kAuto;
+  layout_view->CalculateScrollbarModes(
+      h_mode, v_mode, my_scrollbar_properties_struct.OverflowX,
+      my_scrollbar_properties_struct.OverflowY, true);
+
+  // Do any of these next things work at all?? They seem to depend on the layout
+  // tree being constructed...
+  //
+  // Since overlay scrollbars (the fade-in/out kind, not overflow: overlay) only
+  // appear when scrolling, we don't create them if there isn't overflow to
+  // scroll. Thus, overlay scrollbars can't be "always on". i.e.
+  // |overlay:scroll| behaves like |overlay:auto|.
+  bool has_custom_scrollbar_style =
+      ScrollbarStyleSource(*GetLayoutBox())
+          .StyleRef()
+          .HasCustomScrollbarStyle(GetElementForScrollStart());
+  LOG(ERROR) << "Bottom of ComputeScrollbarExistence2, "
+                "has_custom_scrollbar_style = "
+             << has_custom_scrollbar_style;
+  // StyleRef will probably return crap for my case, but test it in pernosco. If
+  // so, I'll have to add my own logic for has_custom_scrollbar_style based on
+  // something in |my_scrollbar_properties_struct|.
+  // TODO(10/18 PM): See if this LOG(ERROR) has identified a custom scrollbar
+  // when I run this code with a custom scrollbar on :root.
+  bool will_be_overlay = GetPageScrollbarTheme().UsesOverlayScrollbars() &&
+                         !has_custom_scrollbar_style;
+  if (will_be_overlay) {
+    LOG(ERROR) << "Bailing at overlay";
+    return PhysicalSize();
+  }
+  const Page* page = GetDocument()->GetFrame()->GetPage();
+  const ScrollbarTheme& theme = page->GetScrollbarTheme();
+  const float scale_from_dip = page->GetChromeClient().WindowToViewportScalar(
+      GetDocument()->GetFrame(), 1.0f);
+  const int scrollbar_thickness = theme.ScrollbarThickness(
+      scale_from_dip, my_scrollbar_properties_struct.width);
+  LOG(ERROR) << "Pulled thickness of " << scrollbar_thickness
+             << " from the theme";
+  PhysicalSize to_ret;
+  if (h_mode == mojom::blink::ScrollbarMode::kAlwaysOn) {
+    // Determine width of scrollbar now, for subtraction.
+    LOG(ERROR) << "h_mode was kAlwaysOn";
+    to_ret.width = LayoutUnit(scrollbar_thickness);
+  }
+  if (v_mode == mojom::blink::ScrollbarMode::kAlwaysOn) {
+    LOG(ERROR) << "v_mode was kAlwaysOn";
+    to_ret.height = LayoutUnit(scrollbar_thickness);
+  }
+  return to_ret;
+}
+
 void PaintLayerScrollableArea::ComputeScrollbarExistence(
     bool& needs_horizontal_scrollbar,
     bool& needs_vertical_scrollbar,
     ComputeScrollbarExistenceOption option) const {
+  LOG(ERROR) << "Top of original ComputeScrollbarExistence, "
+                "CanHaveOverflowScrollbars(*GetLayoutBox()) = "
+             << CanHaveOverflowScrollbars(*GetLayoutBox());
   // Scrollbars may be hidden or provided by visual viewport or frame instead.
   DCHECK(GetLayoutBox()->GetFrame()->GetSettings());
+  // Lot of logic in ComputeScrollbarExistence. Do we want to adapt it to work
+  // before the root's entire style is calculated?
   if (VisualViewportSuppliesScrollbars() ||
       !CanHaveOverflowScrollbars(*GetLayoutBox()) ||
       GetLayoutBox()->GetFrame()->GetSettings()->GetHideScrollbars() ||
@@ -2812,6 +2911,9 @@ Scrollbar* PaintLayerScrollableArea::ScrollbarManager::CreateScrollbar(
     scrollbar = MakeGarbageCollected<CustomScrollbar>(
         ScrollableArea(), orientation, &style_source);
   } else {
+    // Pernosco a page that has only a root scrollbar from the html element.
+    // Find out what style_source is here. Is it the document LayoutBlock?
+    // LayoutView?
     scrollbar = MakeGarbageCollected<Scrollbar>(ScrollableArea(), orientation,
                                                 &style_source);
   }
