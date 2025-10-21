@@ -314,7 +314,7 @@ void StyleCascade::Apply(CascadeFilter filter) {
   // style_engine.cc). The above mentioned logic has many dependencies on a
   // ComputedStyle object, which obviously does not exist yet.
 
-  if (IsRootElement()) {
+  if (IsRootElement() && !state_.IsForPseudoElement()) {
     if (map_.NativeBitset().Has(CSSPropertyID::kOverflowX)) {
       LookupAndApply(GetCSSPropertyOverflowX(), resolver);
     }
