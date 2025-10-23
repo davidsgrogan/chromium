@@ -875,15 +875,13 @@ bool LayoutView::BackgroundIsKnownToBeOpaqueInRect(const PhysicalRect&) const {
 
 gfx::SizeF LayoutView::SmallViewportSizeForViewportUnits() const {
   NOT_DESTROYED();
-  // These changes are in support of Approach 3, which was mostly a
-  // proof-of-concept.
   if (!GetFrameView()) {
     return gfx::SizeF();
   }
   gfx::SizeF full_size = GetFrameView()->SmallViewportSizeForViewportUnits();
   gfx::SizeF scrollbars_removed =
-      full_size -
-      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+      full_size - gfx::SizeF(vertical_scrollbar_width_for_viewport_units,
+                             horizontal_scrollbar_height_for_viewport_units);
   scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
   return scrollbars_removed;
 }
@@ -895,8 +893,8 @@ gfx::SizeF LayoutView::LargeViewportSizeForViewportUnits() const {
   }
   gfx::SizeF full_size = GetFrameView()->LargeViewportSizeForViewportUnits();
   gfx::SizeF scrollbars_removed =
-      full_size -
-      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+      full_size - gfx::SizeF(vertical_scrollbar_width_for_viewport_units,
+                             horizontal_scrollbar_height_for_viewport_units);
   scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
   return scrollbars_removed;
 }
@@ -908,8 +906,8 @@ gfx::SizeF LayoutView::DynamicViewportSizeForViewportUnits() const {
   }
   gfx::SizeF full_size = GetFrameView()->DynamicViewportSizeForViewportUnits();
   gfx::SizeF scrollbars_removed =
-      full_size -
-      gfx::SizeF(vertical_scrollbar_width, horizontal_scrollbar_height);
+      full_size - gfx::SizeF(vertical_scrollbar_width_for_viewport_units,
+                             horizontal_scrollbar_height_for_viewport_units);
   scrollbars_removed.SetToMax(gfx::SizeF(0, 0));
   return scrollbars_removed;
 }

@@ -150,7 +150,7 @@ class CORE_EXPORT StyleResolver final : public GarbageCollected<StyleResolver> {
 
   // Propagate computed values from the root or body element to the viewport
   // when specified to do so.
-  void PropagateStyleToViewport(bool for_scroll = false);
+  void PropagateStyleToViewport();
 
   // Create ComputedStyle for anonymous boxes.
   ComputedStyleBuilder CreateAnonymousStyleBuilderWithDisplay(

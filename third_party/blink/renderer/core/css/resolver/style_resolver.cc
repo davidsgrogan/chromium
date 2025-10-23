@@ -3284,26 +3284,18 @@ bool StyleResolver::ShouldStopBodyPropagation(const Element& body_or_html) {
   return contained;
 }
 
-void StyleResolver::PropagateStyleToViewport(bool for_scrollbars) {
+void StyleResolver::PropagateStyleToViewport() {
   DCHECK(GetDocument().InStyleRecalc());
   Element* document_element = GetDocument().documentElement();
   const ComputedStyle* document_element_style =
       document_element && document_element->GetLayoutObject()
           ? document_element->GetComputedStyle()
           : nullptr;
-  if (for_scrollbars) {
-    DCHECK(document_element);
-    document_element_style = document_element->GetComputedStyle();
-  }
   const ComputedStyle* body_style = nullptr;
-  if (!for_scrollbars) {
-    // We only want to teach LayoutView about scrollbars from the _root
-    // element_, so ignore BODY.
-    if (HTMLBodyElement* body = GetDocument().FirstBodyElement()) {
-      if (!ShouldStopBodyPropagation(*document_element) &&
-          !ShouldStopBodyPropagation(*body)) {
-        body_style = body->GetComputedStyle();
-      }
+  if (HTMLBodyElement* body = GetDocument().FirstBodyElement()) {
+    if (!ShouldStopBodyPropagation(*document_element) &&
+        !ShouldStopBodyPropagation(*body)) {
+      body_style = body->GetComputedStyle();
     }
   }
 

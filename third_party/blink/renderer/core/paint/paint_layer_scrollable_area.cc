@@ -1421,9 +1421,8 @@ bool PaintLayerScrollableArea::CanPropagateScroll() const {
 // opposed to the viewport scrollbars managed by VisualViewport).
 static bool CanHaveOverflowScrollbars(const LayoutBox& box) {
   // Shouldn't these be equal for my root element??
-  // This function is returning true, which I do not understand.
-  // It returnns true because ViewportDefiningElement() returns nullptr because
-  // there documentElement.GetComputedStyle() returns null. But box.GetNode() is
+  // This func returns true because ViewportDefiningElement() returns nullptr
+  // when documentElement.GetComputedStyle() returns null. And box.GetNode() is
   // NOT null, so these are not equal, so we say yes to
   // CanHaveOverflowScrollbars.
   return box.GetDocument().ViewportDefiningElement() != box.GetNode();
@@ -1436,11 +1435,6 @@ void PaintLayerScrollableArea::UpdateAfterStyleChange(
     UpdateScrollableAreaSet();
 
   UpdateResizerStyle(old_style);
-
-  // Seems like a losing game to not run the next ~35 lines of scrollbar logic,
-  // especially ComputeScrollbarExistence. But also doesn't seem great to
-  // duplicate the majority of it into StyleCascade::Apply, and refactor it to
-  // not need an explicit ComputedStyle object.
 
   // The scrollbar overlay color theme depends on styles such as the background
   // color and the used color scheme.
@@ -1789,13 +1783,12 @@ PhysicalSize PaintLayerScrollableArea::ComputeScrollbarExistence2(
              << " from the theme";
   PhysicalSize to_ret;
   if (h_mode == mojom::blink::ScrollbarMode::kAlwaysOn) {
-    // Determine width of scrollbar now, for subtraction.
     LOG(ERROR) << "h_mode was kAlwaysOn";
-    to_ret.width = LayoutUnit(scrollbar_thickness);
+    to_ret.height = LayoutUnit(scrollbar_thickness);
   }
   if (v_mode == mojom::blink::ScrollbarMode::kAlwaysOn) {
     LOG(ERROR) << "v_mode was kAlwaysOn";
-    to_ret.height = LayoutUnit(scrollbar_thickness);
+    to_ret.width = LayoutUnit(scrollbar_thickness);
   }
   return to_ret;
 }
@@ -1809,8 +1802,6 @@ void PaintLayerScrollableArea::ComputeScrollbarExistence(
              << CanHaveOverflowScrollbars(*GetLayoutBox());
   // Scrollbars may be hidden or provided by visual viewport or frame instead.
   DCHECK(GetLayoutBox()->GetFrame()->GetSettings());
-  // Lot of logic in ComputeScrollbarExistence. Do we want to adapt it to work
-  // before the root's entire style is calculated?
   if (VisualViewportSuppliesScrollbars() ||
       !CanHaveOverflowScrollbars(*GetLayoutBox()) ||
       GetLayoutBox()->GetFrame()->GetSettings()->GetHideScrollbars() ||

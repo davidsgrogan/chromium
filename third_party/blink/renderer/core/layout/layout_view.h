@@ -424,10 +424,8 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
   mutable PhysicalRect previous_background_rect_;
 
  public:
-  // These fields are in support of Approach 3, but storing them here is
-  // obviously not a good long-term solution.
-  int vertical_scrollbar_width = 0;
-  int horizontal_scrollbar_height = 0;
+  int vertical_scrollbar_width_for_viewport_units = 0;
+  int horizontal_scrollbar_height_for_viewport_units = 0;
 };
 
 template <>

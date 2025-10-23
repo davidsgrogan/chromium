@@ -902,27 +902,6 @@ gfx::SizeF LocalFrameView::SmallViewportSizeForViewportUnits() const {
     return gfx::SizeF();
 
   gfx::SizeF layout_size;
-  // Subtracting the scrollbar sizes here doesn't work because the scrollbars
-  // haven't been created yet. They are eventually created by:
-  //
-  // StyleEngine::UpdateStyleAndLayoutTree
-  // StyleResolver::PropagateStyleToViewport
-  // LayoutObject::SetStyle
-  // LayoutView::StyleDidChange
-  // LayoutBlockFlow::StyleDidChange
-  // LayoutBlock::StyleDidChange
-  // LayoutBox::StyleDidChange
-  // LayoutBoxModelObject::StyleDidChange
-  // PaintLayer::StyleDidChange
-  // PaintLayerScrollableArea::UpdateAfterStyleChange
-  // PaintLayerScrollableArea::SetHasVerticalScrollbar
-  // ScrollbarManager::SetHasVerticalScrollbar
-  // ScrollbarManager::CreateScrollbar
-  //
-  // We might have to shuffle around when scrollbars are added in response to
-  // :root { overflow: scroll; } so that
-  // ScrollableArea::VerticalScrollbarWidth() returns their widths in response
-  // to passing kExcludeScrollbars, instead of returning 0.
   layout_size.set_width(layout_view->ViewWidth(kIncludeScrollbars) / zoom);
   layout_size.set_height(layout_view->ViewHeight(kIncludeScrollbars) / zoom);
 
