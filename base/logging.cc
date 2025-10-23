@@ -230,7 +230,7 @@ FileHandle g_log_file = nullptr;
 // What should be prepended to each message?
 bool g_log_process_id = false;
 bool g_log_thread_id = false;
-bool g_log_timestamp = false;
+bool g_log_timestamp = true;
 bool g_log_tickcount = false;
 const char* g_log_prefix = nullptr;
 
@@ -600,10 +600,10 @@ void SetLogItems(bool enable_process_id,
                  bool enable_thread_id,
                  bool enable_timestamp,
                  bool enable_tickcount) {
-  g_log_process_id = false;
-  g_log_thread_id = false;
-  g_log_timestamp = false;
-  g_log_tickcount = false;
+  g_log_process_id = enable_process_id;
+  g_log_thread_id = enable_thread_id;
+  g_log_timestamp = enable_timestamp;
+  g_log_tickcount = enable_tickcount;
 }
 
 void SetLogPrefix(const char* prefix) {
@@ -927,32 +927,6 @@ std::string LogMessage::BuildCrashString() const {
                                    UNSAFE_TODO(str().c_str() + message_start_));
 }
 
-std::string_view getLastDirAndFile(std::string_view path) {
-  // 1. Find the position of the last '/'
-  const auto last_slash_pos = path.rfind('/');
-
-  // 2. If no '/' is found, the path is just a filename. Return the whole path.
-  if (last_slash_pos == std::string_view::npos) {
-    return path;
-  }
-
-  // 3. Find the '/' before the last one.
-  // We search in the substring that ends just before the last slash.
-  const auto second_last_slash_pos = path.rfind('/', last_slash_pos - 1);
-
-  // 4. If a second-to-last '/' is found, return the substring starting
-  // from the character right after it.
-  if (second_last_slash_pos != std::string_view::npos) {
-    return path.substr(second_last_slash_pos + 1);
-  }
-
-  // 5. Otherwise, the path has only one directory component (e.g.,
-  // "dir/file.txt") or is an absolute path to a file in the root (e.g.,
-  // "/file.txt"). For "/file.txt", the logic above correctly returns
-  // "file.txt". For "dir/file.txt", the whole path is the desired result.
-  return path;
-}
-
 // writes the common header info to the stream
 void LogMessage::Init(const char* file, int line) {
   // Don't let actions from this method affect the system error after returning.
@@ -968,11 +942,10 @@ void LogMessage::Init(const char* file, int line) {
   //
   // TODO(pbos): Consider migrating LogMessage and the LOG() macros to use
   // base::Location directly. See base/check.h for inspiration.
-  const std::string_view filename2 =
+  const std::string_view filename =
       file[0] == '.' ? std::string_view(file).substr(
                            std::min(std::size_t{6}, strlen(file)))
                      : file;
-  const std::string_view filename = getLastDirAndFile(filename2);
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (g_log_format == LogFormat::LOG_FORMAT_SYSLOG) {
