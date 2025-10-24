@@ -54,7 +54,7 @@ class PLATFORM_EXPORT ScrollPaintPropertyNode final
 
    public:
     gfx::Rect container_rect;
-    gfx::Size contents_size;
+    gfx::Rect contents_rect;
     Member<const ClipPaintPropertyNode> overflow_clip_node;
     bool user_scrollable_horizontal = false;
     bool user_scrollable_vertical = false;
@@ -143,7 +143,7 @@ class PLATFORM_EXPORT ScrollPaintPropertyNode final
   // space of the associated transform node (ScrollTranslation). It has the
   // same origin as ContainerRect().
   gfx::Rect ContentsRect() const {
-    return gfx::Rect(state_.container_rect.origin(), state_.contents_size);
+    return state_.contents_rect;
   }
 
   const ClipPaintPropertyNode* OverflowClipNode() const {

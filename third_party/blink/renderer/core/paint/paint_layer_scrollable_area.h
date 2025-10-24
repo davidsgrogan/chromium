@@ -335,6 +335,10 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // have subpixel accumulation.
   gfx::Size PixelSnappedContentsSize(const PhysicalOffset& paint_offset) const;
 
+  gfx::Rect PixelSnappedContentsRect() const {
+    return ToPixelSnappedRect(overflow_rect_);
+  }
+
   void ContentsResized() override;
   gfx::Point LastKnownMousePosition() const override;
   bool ScrollAnimatorEnabled() const override;
