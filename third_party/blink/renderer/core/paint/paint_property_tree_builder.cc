@@ -3026,8 +3026,11 @@ void FragmentPaintPropertyTreeBuilder::UpdateScrollNode() {
 
   PhysicalRect clip_rect = box.OverflowClipRect(context_.current.paint_offset);
   state.container_rect = ToPixelSnappedRect(clip_rect);
-  state.contents_rect =
-      scrollable_area->PixelSnappedContentsRect();  // HALP! pdr.
+  gfx::Point p = box.ScrollableOverflowRect().PixelSnappedOffset();
+  gfx::Size s = scrollable_area->PixelSnappedContentsSize(
+      box.ScrollableOverflowRect().offset);
+  state.contents_rect = {p, s};
+
   state.overflow_clip_node = properties_->OverflowClip();
   state.user_scrollable_horizontal =
       scrollable_area->UserInputScrollable(kHorizontalScrollbar);
